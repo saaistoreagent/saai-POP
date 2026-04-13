@@ -1247,7 +1247,7 @@ export default function Home() {
             className="px-5 py-4 rounded-2xl text-sm font-bold bg-gray-100 text-gray-700 active:bg-gray-200">
             수정
           </button>
-          <button onClick={confirmAndGenerate} disabled={suggesting}
+          <button onClick={() => confirmAndGenerate()} disabled={suggesting}
             className="flex-1 py-4 rounded-2xl text-white font-bold text-base bg-gradient-to-r from-blue-500 to-violet-500 shadow-lg shadow-blue-500/30 active:scale-[0.98] transition-transform disabled:opacity-40">
             이대로 만들기
           </button>
