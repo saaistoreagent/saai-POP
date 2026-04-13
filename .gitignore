@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# 생성된 이미지 (용량 큼)
+/public/generated/
+/public/examples/
+/output/
+
+# 레퍼런스 이미지
+/reference image/

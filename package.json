@@ -9,15 +9,27 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "next": "16.2.2",
+    "@anthropic-ai/sdk": "^0.81.0",
+    "@imgly/background-removal": "^1.7.0",
+    "@napi-rs/canvas": "^0.1.97",
+    "better-sqlite3": "^12.8.0",
+    "drizzle-orm": "^0.45.2",
+    "html-to-image": "^1.11.13",
+    "jspdf": "^4.2.1",
+    "nanoid": "^5.1.7",
+    "next": "^15.5.14",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "unsplash-js": "^7.0.20",
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.2",
     "tailwindcss": "^4",

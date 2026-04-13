@@ -1,26 +1,152 @@
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
+@import url('https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Jua&display=swap');
+@import url('https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansBold.woff2');
 @import "tailwindcss";
 
+@font-face {
+  font-family: 'GmarketSans';
+  src: url('https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansBold.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Cafe24Supermagic';
+  src: url('https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_2307-2@1.0/Cafe24Supermagic-Bold-v1.0.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Jalnan2';
+  src: url('https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_2307-2@1.0/Jalnan2.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'BMDoHyeon';
+  src: url('https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_one@1.0/BMDoHyeon.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+
 :root {
-  --background: #ffffff;
+  --background: #f8fafc;
   --foreground: #171717;
+}
+
+html {
+  scrollbar-gutter: stable;
+}
+
+body {
+  overflow-x: hidden;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
+  --font-display: 'Black Han Sans', sans-serif;
+  --font-fun: 'Jua', sans-serif;
+  --font-pop: 'Jalnan2', 'GmarketSans', 'Black Han Sans', sans-serif;
+  --font-badge: 'Cafe24Supermagic', 'BMDoHyeon', 'Jua', sans-serif;
+  --font-price: 'GmarketSans', 'Black Han Sans', sans-serif;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
 }
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-fun {
+  font-family: var(--font-fun);
+}
+
+.font-pop {
+  font-family: var(--font-pop);
+}
+
+.font-badge {
+  font-family: var(--font-badge);
+}
+
+.font-price {
+  font-family: var(--font-price);
+}
+
+.input {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.625rem;
+  font-size: 0.9rem;
+  outline: none;
+  background: #f9fafb;
+  transition: box-shadow 0.15s, border-color 0.15s, background 0.15s;
+  -webkit-appearance: none;
+}
+
+.input:focus {
+  border-color: #3b82f6;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+/* iOS safe area */
+.pt-safe { padding-top: env(safe-area-inset-top); }
+.pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+
+/* 스크롤바 숨김 (모바일 앱 느낌) */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* 모바일 앱 셸 — 데스크탑에선 가운데 폰 너비 패널, 모바일에선 풀스크린 */
+.app-shell {
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+  background: #ffffff;
+  height: 100vh;
+  height: 100dvh;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+@media (min-width: 768px) {
+  .app-shell {
+    min-height: calc(100vh - 32px);
+    margin-top: 16px;
+    margin-bottom: 16px;
+    border-radius: 28px;
+    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.05);
+    overflow: hidden;
+  }
+}
+
+/* 바텀시트 슬라이드업 */
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.animate-slide-up { animation: slideUp 0.28s cubic-bezier(0.32, 0.72, 0, 1); }
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-fade-in { animation: fadeIn 0.2s ease-out; }
+
+/* number input 상하 화살표 제거 */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type=number] { -moz-appearance: textfield; }
