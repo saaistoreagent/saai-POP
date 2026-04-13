@@ -278,13 +278,46 @@ JSON만:
         ...(additionalProducts || []),
       ];
 
-      // 선반/띠지는 항상 Canvas 템플릿 — 사진 여부에 따라 레이아웃 달라짐
-      // 업로드/검색 이미지를 각 인덱스에 맞게 정리 (null 허용)
+      // 선반/띠지는 항상 Canvas 템플릿 — 사진을 data URL로 변환 + 배경 제거
       const photoList: (string | null)[] = [];
       const srcs: (string | null | undefined)[] = productImages || (productImageUrl ? [productImageUrl] : []);
       for (const s of srcs) {
         if (!s) { photoList.push(null); continue; }
-        photoList.push(s); // URL이든 data URL이든 그대로 (loadImage가 처리)
+        let dataUrl: string | null = null;
+        if (s.startsWith('data:')) {
+          dataUrl = s;
+        } else {
+          try {
+            const imgRes = await fetch(s, {
+              headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
+            });
+            if (imgRes.ok) {
+              const buf = await imgRes.arrayBuffer();
+              const ct = imgRes.headers.get('content-type') || 'image/png';
+              dataUrl = `data:${ct};base64,${Buffer.from(buf).toString('base64')}`;
+            }
+          } catch {}
+        }
+        // 배경 제거 시도
+        if (dataUrl) {
+          try {
+            const bgRes = await fetch(`${request.nextUrl.origin}/api/remove-bg`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ imageBase64: dataUrl }),
+            });
+            if (bgRes.ok) {
+              const bgData = await bgRes.json();
+              if (bgData.imageBase64) {
+                dataUrl = bgData.imageBase64;
+                console.log('[pop] 배경 제거 성공');
+              }
+            }
+          } catch (e) {
+            console.warn('[pop] 배경 제거 실패, 원본 사용:', e);
+          }
+        }
+        photoList.push(dataUrl);
       }
 
       try {

@@ -1,56 +1,39 @@
 import { NextRequest } from 'next/server';
 
-/** DuckDuckGo 이미지 검색 — 상품 패키지/제품 사진 찾기 */
+const NAVER_CLIENT_ID = 'id_430ivqYvXj93qAg9i';
+const NAVER_CLIENT_SECRET = 'h0l8SQ5hLq';
+
+/** 네이버 쇼핑 API → 제품 이미지 검색 (누끼 이미지 제공) */
 export async function GET(request: NextRequest) {
   const query = request.nextUrl.searchParams.get('q');
   if (!query) return Response.json({ images: [] });
 
   try {
-    // 상품 사진 검색 — 쓸데없는 필터 없이 단순하게
-    const searchQuery = `${query} 제품 사진`;
-
-    // 1. VQD 토큰 획득
-    const pageRes = await fetch(
-      `https://duckduckgo.com/?q=${encodeURIComponent(searchQuery)}&iax=images&ia=images`,
-      { headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' } }
-    );
-    const pageHtml = await pageRes.text();
-    const vqdMatch = pageHtml.match(/vqd="([^"]+)"/);
-    if (!vqdMatch) return Response.json({ images: [] });
-
-    // 2. 이미지 검색 API
-    const imgRes = await fetch(
-      `https://duckduckgo.com/i.js?l=kr-kr&o=json&q=${encodeURIComponent(searchQuery)}&vqd=${vqdMatch[1]}&f=size:Medium`,
+    // 네이버 쇼핑 검색 API
+    const res = await fetch(
+      `https://openapi.naver.com/v1/search/shop.json?query=${encodeURIComponent(query)}&display=10&sort=sim`,
       {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-          'Referer': 'https://duckduckgo.com/',
+          'X-Naver-Client-Id': NAVER_CLIENT_ID,
+          'X-Naver-Client-Secret': NAVER_CLIENT_SECRET,
         },
       }
     );
-    if (!imgRes.ok) return Response.json({ images: [] });
 
-    const data = await imgRes.json();
+    if (!res.ok) {
+      console.error('[search-image] 네이버 API 에러:', res.status);
+      return Response.json({ images: [] });
+    }
 
-    // 결과 필터링: 너무 작거나 이상한 이미지 제외
-    const results = (data.results || [])
-      .filter((r: { width: number; height: number; image: string }) => {
-        // 최소 크기 필터
-        if (r.width < 200 || r.height < 200) return false;
-        // 비율 필터 (너무 가로로 길거나 세로로 긴 이미지 제외)
-        const ratio = r.width / r.height;
-        if (ratio > 3 || ratio < 0.3) return false;
-        // 아이콘/로고 사이즈 제외
-        if (r.width < 300 && r.height < 300) return false;
-        return true;
-      })
+    const data = await res.json();
+    const results = (data.items || [])
+      .filter((item: { image: string }) => item.image)
       .slice(0, 10)
-      .map((r: { image: string; thumbnail: string; title: string }) => ({
-        // DDG CDN 썸네일을 기본 URL로 — 외부 핫링크 차단에 안 걸림
-        url: r.thumbnail || r.image,
-        thumbnail: r.thumbnail,
-        originalUrl: r.image,
-        title: r.title,
+      .map((item: { image: string; title: string }) => ({
+        url: item.image,
+        thumbnail: item.image,
+        originalUrl: item.image,
+        title: item.title.replace(/<[^>]*>/g, ''), // HTML 태그 제거
       }));
 
     return Response.json({ images: results });

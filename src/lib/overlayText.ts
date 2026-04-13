@@ -296,53 +296,8 @@ export async function overlayTextOnImage(options: OverlayOptions): Promise<strin
     popText(ctx, badgeType, W / 2, bY, '#FFD700', badgeSize * 0.15, badgeSize);
   }
 
-  // ═══ 상품명 (하단 좌측) ═══
-  ctx.textAlign = 'left';
-  const nameSize = Math.round(W * 0.05);
-  ctx.font = `900 ${nameSize}px ${FONTS.catch}`;
-  popText(ctx, productName, W * 0.05, H * 0.84, '#FFFFFF', nameSize * 0.12, nameSize);
-
-  // ═══ subCopy (비어있으면 스킵) ═══
-  if (subCopy) {
-    const subSize = Math.round(W * 0.028);
-    ctx.font = `700 ${subSize}px ${FONTS.sub}`;
-    popText(ctx, subCopy, W * 0.05, H * 0.89, '#FFE066', subSize * 0.1, subSize);
-  }
-
-  // ═══ 정상가 (취소선) + 판매가 ═══
-  if (price && price > 0) {
-    // 정상가 (있으면 취소선)
-    const op = prods.length > 0 ? prods[0]?.originalPrice : undefined;
-    if (op && op > price) {
-      ctx.textAlign = 'right';
-      const opSize = Math.round(W * 0.04);
-      ctx.font = `700 ${opSize}px ${FONTS.price}`;
-      const opStr = op.toLocaleString('ko-KR') + '원';
-      const opX = W * 0.93, opY = H * 0.88;
-      popText(ctx, opStr, opX, opY, 'rgba(255,255,255,0.5)', opSize * 0.08, opSize);
-      // 취소선
-      const opW = ctx.measureText(opStr).width;
-      ctx.strokeStyle = 'rgba(255,100,100,0.8)'; ctx.lineWidth = 2; ctx.setLineDash([]);
-      ctx.beginPath(); ctx.moveTo(opX - opW - 5, opY); ctx.lineTo(opX + 5, opY); ctx.stroke();
-    }
-    // 판매가
-    ctx.textAlign = 'right';
-    const priceStr = price.toLocaleString('ko-KR');
-    const priceSize = Math.round(W * 0.13);
-    ctx.font = `900 ${priceSize}px ${FONTS.price}`;
-    popText(ctx, priceStr, W * 0.86, H * 0.94, '#FFD700', priceSize * 0.12, priceSize);
-    const wonSize = Math.round(W * 0.05);
-    ctx.font = `900 ${wonSize}px ${FONTS.price}`;
-    popText(ctx, '원', W * 0.93, H * 0.94, '#FFD700', wonSize * 0.12, wonSize);
-  }
-
-  // ═══ 행사 기간 ═══
-  if (eventPeriod) {
-    ctx.textAlign = 'center';
-    const epSize = Math.round(W * 0.022);
-    ctx.font = `700 ${epSize}px ${FONTS.sub}`;
-    popText(ctx, eventPeriod, W / 2, H * 0.98, 'rgba(255,255,255,0.8)', epSize * 0.08, epSize);
-  }
+  // 상품명, 가격, subCopy, 행사기간은 Gemini가 이미지에 직접 배치하므로
+  // canvas overlay에서는 캐치프레이즈/배지만 그림
 
   return `data:image/png;base64,${canvas.toBuffer('image/png').toString('base64')}`;
 }
