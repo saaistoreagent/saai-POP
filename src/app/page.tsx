@@ -1299,7 +1299,7 @@ export default function Home() {
                     setWizardStep(1);
                     setPhotoSearched(false);
                     setPhotoResolutions([]);
-                    setPhotoEnabled(popType === 'poster');
+                    setPhotoEnabled(false);
                   }}
                     className="flex-1 py-3 rounded-xl text-sm font-bold bg-gray-100 text-gray-700 active:bg-gray-200">
                     다시 만들기

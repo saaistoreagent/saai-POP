@@ -214,7 +214,7 @@ export async function overlayTextOnImage(options: OverlayOptions): Promise<strin
       popText(ctx, labelText, W / 2, stripY + stripH * 0.35, 'rgba(255,255,255,0.9)', labelSize * 0.08, labelSize);
 
       // 정상가 취소선 (있으면)
-      if (p.originalPrice && p.originalPrice > p.price) {
+      if (p.originalPrice && p.price && p.originalPrice > p.price) {
         const opSize = Math.round(W * 0.045);
         ctx.font = `700 ${opSize}px ${FONTS.price}`;
         const opStr = p.originalPrice.toLocaleString('ko-KR') + '원';
@@ -228,7 +228,7 @@ export async function overlayTextOnImage(options: OverlayOptions): Promise<strin
 
       const priceSize = Math.round(W * 0.13);
       ctx.font = `900 ${priceSize}px ${FONTS.price}`;
-      popText(ctx, p.price.toLocaleString('ko-KR') + '원', W / 2, stripY + stripH * 0.92, '#FFD700', priceSize * 0.1, priceSize);
+      popText(ctx, p.price!.toLocaleString('ko-KR') + '원', W / 2, stripY + stripH * 0.92, '#FFD700', priceSize * 0.1, priceSize);
     } else {
       // 가격 다름 → 각 상품을 가로 행으로 나열
       const cols = prods.length;

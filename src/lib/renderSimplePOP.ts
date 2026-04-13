@@ -360,10 +360,10 @@ export async function renderShelfSheet(
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#FFFFFF';
       fitFontSize(ctx, p.name, cellW * 0.85, Math.round(cellH * 0.16), FB);
       ctx.fillText(p.name, cardCx, afterB + cellH * 0.08);
-      if (p.originalPrice && p.originalPrice > p.price!) drawOriginalPrice(ctx, p.originalPrice, cx, y + cellH * 0.62, Math.round(cellH * 0.1), cardBg);
+      if (p.originalPrice && p.originalPrice > p.price!) drawOriginalPrice(ctx, p.originalPrice, cardCx, y + cellH * 0.62, Math.round(cellH * 0.1), cardBg);
       ctx.fillStyle = '#FFD700'; ctx.textAlign = 'center';
       ctx.font = 'bold ' + Math.round(cellH * 0.22) + 'px ' + FP;
-      ctx.fillText(p.price!.toLocaleString('ko-KR') + '원', cx, y + cellH * 0.82);
+      ctx.fillText(p.price!.toLocaleString('ko-KR') + '원', cardCx, y + cellH * 0.82);
     } else if (hasBadge && hasName) {
       drawCenterBadgeNP(y + cellH * 0.2, cellW * 0.5);
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#FFFFFF';
