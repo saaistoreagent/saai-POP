@@ -122,7 +122,7 @@ body {
 }
 @media (min-width: 768px) {
   .app-shell {
-    min-height: calc(100vh - 32px);
+    height: calc(100vh - 32px);
     margin-top: 16px;
     margin-bottom: 16px;
     border-radius: 28px;
