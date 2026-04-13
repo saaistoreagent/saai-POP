@@ -15,12 +15,12 @@ app.prepare().then(() => {
     const parsedUrl = parse(req.url, true);
     const { pathname } = parsedUrl;
 
-    // /generated/ 경로는 public/generated/에서 직접 서빙
-    if (pathname.startsWith('/generated/')) {
+    // 런타임 생성 이미지 직접 서빙
+    if (pathname.startsWith('/generated/') || pathname.startsWith('/examples/')) {
       const filePath = path.join(process.cwd(), 'public', pathname);
       if (fs.existsSync(filePath)) {
         res.setHeader('Content-Type', 'image/png');
-        res.setHeader('Cache-Control', 'public, max-age=3600');
+        res.setHeader('Cache-Control', 'public, max-age=86400');
         fs.createReadStream(filePath).pipe(res);
         return;
       }
