@@ -1319,7 +1319,8 @@ export default function Home() {
           <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
             <h3 className="text-[13px] font-bold text-gray-800">수정 요청</h3>
             <p className="text-[11px] text-gray-500 mt-1 mb-3">
-              마음에 안 드는 부분을 자유롭게 적어주세요.
+              마음에 안 드는 부분을 자유롭게 적어주세요.<br />
+              <span className="text-gray-400">색감, 분위기, 텍스트 수정이 잘 돼요. 크기/위치 조정은 크게 말해주세요 (예: "맥주 반으로 줄여줘").</span>
             </p>
 
             <div className="space-y-2 mb-3 max-h-[240px] overflow-y-auto">
