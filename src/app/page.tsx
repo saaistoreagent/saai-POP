@@ -965,7 +965,7 @@ export default function Home() {
               })}
 
               {/* 방향 + 배경색 (사진 단계에 통합) */}
-              {popType !== 'badge' && (
+              {(popType === 'poster' || popType === 'shelf' || popType === 'banner') && (
                 <div className="space-y-4 mt-4">
                   <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
                     <label className="text-[12px] font-bold text-gray-500 block mb-2">용지 방향</label>
