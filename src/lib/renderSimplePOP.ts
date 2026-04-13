@@ -1,7 +1,7 @@
 import { createCanvas, GlobalFonts, loadImage } from '@napi-rs/canvas';
 import path from 'path';
 
-const fontDir = '/Users/hyeon/Desktop/pop/public/fonts';
+const fontDir = path.join(process.cwd(), 'public', 'fonts');
 try { GlobalFonts.registerFromPath(path.join(fontDir, 'DoHyeon.ttf'), 'DoHyeon'); } catch {}
 try { GlobalFonts.registerFromPath(path.join(fontDir, 'Jua.ttf'), 'Jua'); } catch {}
 try { GlobalFonts.registerFromPath('/System/Library/Fonts/AppleSDGothicNeo.ttc', 'AppleSD'); } catch {}

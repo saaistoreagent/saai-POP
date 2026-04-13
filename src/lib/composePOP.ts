@@ -1,7 +1,7 @@
 import { createCanvas, loadImage, GlobalFonts } from '@napi-rs/canvas';
 import path from 'path';
 
-const fontDirAlt = '/Users/hyeon/Desktop/pop/public/fonts';
+const fontDirAlt = path.join(process.cwd(), 'public', 'fonts');
 function tryReg(name: string, file: string) {
   try {
     const p = path.join(fontDirAlt, file);
