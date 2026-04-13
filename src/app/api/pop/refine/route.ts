@@ -34,17 +34,20 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: 'invalid previousImage' }, { status: 400 });
   }
 
-  const prompt = `You are editing an existing Korean convenience store POP (Point of Purchase) advertisement image. It could be a poster, badge sheet, shelf price tag sheet, or shelf banner.
+  const prompt = `You are editing an existing Korean convenience store POP advertisement image.
 
-The user wants this change applied to the image:
+The user requested this change:
 "${instruction}"
 
 CRITICAL RULES:
-- Apply the requested change to the previous image, but keep everything else the same.
-- If the change involves Korean text, render the Korean characters PERFECTLY and ACCURATELY. No garbled, substituted, or missing characters.
-- Preserve the existing layout, aspect ratio, mood, lighting, and product placement unless the user explicitly asks to change them.
-- The output should remain suitable for A4 print (keep the same orientation — portrait or landscape — as the input).
-- Return ONLY the edited image, no extra text.`;
+1. Make the requested change OBVIOUS and CLEARLY VISIBLE. The user must be able to see the difference immediately. Do NOT make subtle changes.
+2. If asked to make something smaller → make it SIGNIFICANTLY smaller (at least 30-40% reduction).
+3. If asked to make something bigger → make it SIGNIFICANTLY bigger (at least 30-40% increase).
+4. If asked to move something → move it to a CLEARLY different position.
+5. Keep everything else the same — same background, same mood, same style, same text.
+6. Korean text must be PERFECTLY ACCURATE. No garbled or missing characters.
+7. Keep the same aspect ratio and orientation as the input.
+8. Return ONLY the edited image.`;
 
   try {
     const res = await fetch(
