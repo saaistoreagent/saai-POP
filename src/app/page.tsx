@@ -39,7 +39,7 @@ const POP_TYPES: POPTypeInfo[] = [
   { value: 'banner', label: '띠지', detail: '선반 앞면에 길게 붙이는 가로 띠', count: { 세로: '4줄', 가로: '3줄' } },
 ];
 
-const BADGE_PRESETS = ['없음', '1+1', '2+1', '3+1', '덤증정', '품절대란', '신상출시', '소진임박', '에디터픽'];
+const BADGE_PRESETS = ['없음', '1+1', '2+1', '3+1', '덤증정', '품절대란', '신상출시', '소진임박'];
 
 const BG_COLORS = [
   { hex: '#E91E90', name: '핑크' },
@@ -227,6 +227,9 @@ export default function Home() {
     setPhotoSearchName('');
     setEventDesc('');
     setMoodDesc('');
+    setOrientation('세로');
+    setBgColor('#E91E90');
+    setPreviewImage(null);
   }
 
   function backToLanding() {
@@ -243,8 +246,8 @@ export default function Home() {
 
   function nextStep() {
     if (view === 'form') {
-      // 포스터만 Step 1에서 상품명 필수
-      if (wizardStep === 1 && popType === 'poster') {
+      // 포스터: Step 2에서 상품명 필수 (Gemini 생성에 사용)
+      if (wizardStep === 2 && popType === 'poster') {
         if (!products.some(p => p.name.trim())) { alert('상품명을 입력해주세요.'); return; }
       }
       if (wizardStep === 1 && popType === 'badge' && badgeType === '없음') {
@@ -761,8 +764,8 @@ export default function Home() {
               'banner-가로': { cellW: 1123, cellH: 794 / 3, totalW: 1123, totalH: 794 },
               'shelf-세로': { cellW: 794, cellH: 1123 / 4, totalW: 794, totalH: 1123 },
               'shelf-가로': { cellW: 1123, cellH: 794 / 3, totalW: 1123, totalH: 794 },
-              'badge-세로': { cellW: 794 / 3, cellH: 1123 / 5, totalW: 794, totalH: 1123 },
-              'badge-가로': { cellW: 1123 / 4, cellH: 794 / 3, totalW: 1123, totalH: 794 },
+              'badge-세로': { cellW: 794, cellH: 1123 / 5, totalW: 794, totalH: 1123 },
+              'badge-가로': { cellW: 1123, cellH: 794 / 3, totalW: 1123, totalH: 794 },
             };
             const key = `${popType}-${orientation}`;
             const cfg = cells[key] || { cellW: 794, cellH: 280, totalW: 794, totalH: 1123 };
@@ -771,7 +774,7 @@ export default function Home() {
             const heightPct = (cfg.totalH / cfg.cellH) * 100;
             return (
               <div className="sticky top-0 z-20 bg-gray-50 border-b border-gray-100 px-2 pt-2 pb-2">
-                <p className="text-[12px] font-bold text-gray-500 px-1 mb-1">이렇게 나와요 <span className="text-gray-400 font-normal">(상품 1개 기준 예시)</span></p>
+                <p className="text-[12px] font-bold text-gray-500 px-1 mb-1">미리보기{popType !== 'badge' && <span className="text-gray-400 font-normal"> (상품 1개 기준 예시)</span>}</p>
                 <div className="relative bg-white rounded-lg border border-gray-200 overflow-hidden"
                   style={{
                     aspectRatio,
@@ -822,8 +825,8 @@ export default function Home() {
                 className="input resize-none mt-2 text-[13px]" />
             </div>
 
-            {/* 상품 (이미지 + 이름 + 가격) */}
-            {products.map((p, i) => {
+            {/* 상품 (이미지 + 이름 + 가격) — 배지는 문구만 사용하므로 제외 */}
+            {popType !== 'badge' && products.map((p, i) => {
               const photoRes = photoResolutions.find(r => r.productIndex === i);
               return (
                 <div key={i} data-product-card className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm space-y-3">
@@ -879,7 +882,7 @@ export default function Home() {
 
                   {/* 선택된 사진 */}
                   {photoRes?.imageUrl && (
-                    <div className="rounded-xl overflow-hidden bg-gray-50 border border-gray-200" style={{ height: 140 }}>
+                    <div className="rounded-xl overflow-hidden bg-gray-50 border border-gray-200" style={{ height: 200 }}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={displayUrl(photoRes.imageUrl)} alt="" className="w-full h-full object-contain" />
                     </div>
@@ -887,12 +890,12 @@ export default function Home() {
 
                   {/* 3가지 등록 방식 — 검색 안 했을 때 안내 + 3개 버튼 */}
                   {!photoRes?.imageUrl && (
-                    <div className="rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-center" style={{ height: 100 }}>
-                      <p className="text-[13px] text-gray-400">아래에서 사진을 등록해주세요</p>
+                    <div className="rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-center" style={{ height: 200 }}>
+                      <p className="text-[13px] text-gray-400">사진을 등록해주세요</p>
                     </div>
                   )}
 
-                  <div className="grid grid-cols-3 gap-1.5">
+                  <div className="grid grid-cols-2 gap-1.5">
                     <button onClick={() => photoUploadClick(i)}
                       className="py-2 rounded-lg text-[12px] font-bold bg-white border border-gray-300 text-gray-700 active:bg-gray-100">
                       직접 올리기
@@ -900,14 +903,6 @@ export default function Home() {
                     <button onClick={() => photoFindAnother(i)} disabled={!photoRes?.candidates || photoRes.candidates.length <= 1}
                       className="py-2 rounded-lg text-[12px] font-bold bg-white border border-gray-300 text-gray-700 active:bg-gray-100 disabled:opacity-40">
                       다른 이미지
-                    </button>
-                    <button onClick={() => photoUseAI(i)}
-                      className={`py-2 rounded-lg text-[12px] font-bold border ${
-                        photoRes?.status === 'ai_generate'
-                          ? 'bg-violet-500 text-white border-violet-500'
-                          : 'bg-white border-gray-300 text-gray-700 active:bg-gray-100'
-                      }`}>
-                      AI가 그리기
                     </button>
                   </div>
                   {photoRes?.imageUrl && (
@@ -934,7 +929,7 @@ export default function Home() {
               );
             })}
 
-            {(() => {
+            {popType !== 'badge' && (() => {
               const maxProducts = popType === 'banner' ? (orientation === '가로' ? 3 : 4) : (orientation === '가로' ? 3 : 4);
               return products.length < maxProducts ? (
                 <button onClick={() => {
@@ -1017,15 +1012,15 @@ export default function Home() {
       ][wizardStep - 1] as [string, string];
     } else if (popType === 'poster') {
       [stepTitle, stepDesc] = [
-        ['상품 정보', '포스터에 들어갈 상품 정보를 입력해주세요.'],
-        ['문구와 분위기', '포스터에 넣을 문구와 배경 분위기를 선택해주세요. 모두 선택사항입니다.'],
-        ['사진 확인', '상품 사진을 확인하고 용지 방향을 선택해주세요.'],
+        ['POP 문구', '포스터에 크게 들어갈 문구를 선택해주세요. 선택사항입니다.'],
+        ['상품 정보', '포스터에 들어갈 상품 이름과 가격을 입력해주세요.'],
+        ['사진과 분위기', '상품 사진, 배경 분위기, 용지 방향을 설정해주세요.'],
       ][wizardStep - 1] as [string, string];
     } else {
       [stepTitle, stepDesc] = [
-        ['문구와 사진', 'POP에 들어갈 문구를 입력하고, 상품 사진 사용 여부를 선택해주세요.'],
+        ['POP 문구', 'POP에 들어갈 문구를 선택해주세요.'],
         ['상품 정보 (선택)', 'POP에 표시할 상품 이름과 가격입니다. 건너뛰어도 됩니다.'],
-        ['마지막 설정', (photoEnabled ? '상품 사진을 확인하고 ' : '') + '용지 방향과 배경색을 선택해주세요.'],
+        ['사진과 마무리', '상품 사진 사용 여부, 용지 방향, 배경색을 선택해주세요.'],
       ][wizardStep - 1] as [string, string];
     }
 
@@ -1034,8 +1029,8 @@ export default function Home() {
         if (wizardStep === 1) return badgeType && badgeType !== '없음';
         return true;
       }
-      // 포스터: Step 1에서 상품명 필수
-      if (popType === 'poster' && wizardStep === 1) return products.some(p => p.name.trim());
+      // 포스터: Step 2에서 상품명 필수
+      if (popType === 'poster' && wizardStep === 2) return products.some(p => p.name.trim());
       // 선반/띠지: 상품명 없어도 됨 (문구만으로 OK)
       return true;
     })();
@@ -1070,8 +1065,8 @@ export default function Home() {
             <p className="text-[13px] text-gray-500 mt-1 leading-relaxed">{stepDesc}</p>
           </div>
 
-          {/* ─── 포스터 Step 1: 상품 정보 ─── */}
-          {popType === 'poster' && wizardStep === 1 && (
+          {/* ─── 포스터 Step 2: 상품 정보 ─── */}
+          {popType === 'poster' && wizardStep === 2 && (
             <div className="space-y-3">
               {products.map((p, i) => (
                 <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm space-y-2.5">
@@ -1087,36 +1082,7 @@ export default function Home() {
                       placeholder="예: 카스 후레쉬 500ml 캔맥주" className="input" />
                     <p className="text-[13px] text-gray-400 mt-1">브랜드·용량까지 자세히 적으면 사진이 정확하게 검색됩니다.</p>
                   </div>
-                  {/* 가격 */}
-                  {!priceOpen[i] ? (
-                    <button onClick={() => setPriceOpen(prev => ({ ...prev, [i]: true }))}
-                      className="w-full py-2.5 rounded-xl text-[13px] font-medium text-gray-500 bg-gray-50 border border-gray-200 active:bg-gray-100 text-left px-3">
-                      + 가격 입력
-                    </button>
-                  ) : (
-                    <div className="space-y-2 bg-gray-50 rounded-xl p-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[13px] font-bold text-gray-600">가격</span>
-                        <button onClick={() => { setPriceOpen(prev => ({ ...prev, [i]: false })); updateProduct(i, 'price', ''); updateProduct(i, 'originalPrice', ''); }}
-                          className="text-[13px] text-gray-400 active:text-gray-600">삭제</button>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="text-[13px] text-gray-500 block mb-1">판매가</label>
-                          <input type="number" inputMode="numeric" value={p.price}
-                            onChange={e => updateProduct(i, 'price', e.target.value)}
-                            placeholder="2,500" className="input" />
-                        </div>
-                        <div>
-                          <label className="text-[13px] text-gray-400 block mb-1">정가</label>
-                          <input type="number" inputMode="numeric" value={p.originalPrice}
-                            onChange={e => updateProduct(i, 'originalPrice', e.target.value)}
-                            placeholder="3,200" className="input text-gray-400" />
-                        </div>
-                      </div>
-                      <p className="text-[13px] text-gray-400">판매가만 입력하면 가격 표시, 정가도 입력하면 할인 표시(취소선)가 됩니다.</p>
-                    </div>
-                  )}
+                  <p className="text-[13px] text-gray-400">가격/번들은 1단계 POP 문구에 직접 적어주세요. (예: &ldquo;4캔 10,000원&rdquo;)</p>
                 </div>
               ))}
               <button onClick={addProduct}
@@ -1132,7 +1098,7 @@ export default function Home() {
               {/* 강조 문구 */}
               <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
                 <label className="text-[13px] font-bold text-gray-500 block mb-1">POP에 넣을 문구</label>
-                <p className="text-[13px] text-gray-400 mb-3">POP에 크게 들어갈 문구예요. 아래에서 고르거나 직접 적어주세요.</p>
+                <p className="text-[13px] text-gray-400 mb-3">POP에 크게 들어갈 문구입니다. 아래에서 고르거나 직접 입력해주세요.</p>
                 <div className="flex flex-wrap gap-2">
                   {BADGE_PRESETS.map(b => {
                     const active = badgeType === b;
@@ -1146,7 +1112,7 @@ export default function Home() {
                     );
                   })}
                 </div>
-                <p className="text-[13px] text-gray-500 mt-3 mb-1">위에 없는 문구는 여기에 직접 적어주세요 (줄바꿈 가능)</p>
+                <p className="text-[13px] text-gray-500 mt-3 mb-1">위에 없는 문구는 여기에 직접 입력해주세요 (줄바꿈 가능)</p>
                 <div className="flex gap-2 items-start">
                   <textarea
                     value={badgeType === '없음' ? '' : badgeType}
@@ -1192,40 +1158,6 @@ export default function Home() {
                 )}
               </div>
 
-              {/* 사진 ON/OFF */}
-              <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1 pr-3">
-                    <p className="text-[13px] font-bold text-gray-800">상품 사진 넣기</p>
-                    <p className="text-[13px] text-gray-500 mt-0.5">
-                      {photoEnabled
-                        ? '상품 사진이 POP에 들어갑니다.'
-                        : '텍스트만으로 만듭니다.'}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => togglePhoto(!photoEnabled)}
-                    className={`relative w-14 h-8 rounded-full transition-colors shrink-0 ${
-                      photoEnabled ? 'bg-blue-500' : 'bg-gray-300'
-                    }`}
-                  >
-                    <div
-                      className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow transition-all ${
-                        photoEnabled ? 'left-7' : 'left-1'
-                      }`}
-                    />
-                  </button>
-                </div>
-                {photoEnabled && (
-                  <div className="mt-3 pt-3 border-t border-gray-100">
-                    <label className="text-[13px] font-bold text-gray-500 block mb-1">검색할 상품명</label>
-                    <input type="text" value={photoSearchName}
-                      onChange={e => { setPhotoSearchName(e.target.value); setPhotoSearched(false); setPhotoResolutions([]); }}
-                      placeholder="예: 농심 신라면 5개입 봉지" className="input" />
-                    <p className="text-[13px] text-gray-400 mt-1">브랜드·용량까지 자세히 적으면 사진이 정확하게 검색됩니다.</p>
-                  </div>
-                )}
-              </div>
             </div>
           )}
 
@@ -1299,7 +1231,8 @@ export default function Home() {
           )}
 
           {/* ─── 포스터 Step 2: 강조 문구 + 분위기 ─── */}
-          {popType === 'poster' && wizardStep === 2 && (
+          {/* ─── 포스터 Step 1: POP 문구 ─── */}
+          {popType === 'poster' && wizardStep === 1 && (
             <div className="space-y-4">
               {/* 강조 문구 — 선반/띠지와 동일한 구조 */}
               <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
@@ -1318,7 +1251,7 @@ export default function Home() {
                     );
                   })}
                 </div>
-                <p className="text-[13px] text-gray-500 mt-3 mb-1">위에 없는 문구는 여기에 직접 적어주세요 (줄바꿈 가능)</p>
+                <p className="text-[13px] text-gray-500 mt-3 mb-1">위에 없는 문구는 여기에 직접 입력해주세요 (줄바꿈 가능)</p>
                 <div className="flex gap-2 items-start">
                   <textarea
                     value={badgeType === '없음' ? '' : badgeType}
@@ -1366,37 +1299,6 @@ export default function Home() {
                 )}
               </div>
 
-              {/* 분위기 */}
-              <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
-                <label className="text-[13px] font-bold text-gray-500 block mb-1">어떤 느낌으로 만들까요? (선택)</label>
-                <p className="text-[13px] text-gray-400 mb-3">
-                  이걸 바탕으로 <strong className="text-violet-500">배경 이미지</strong>가 만들어져요. 비워두면 상품에 어울리게 자동으로 정해져요.
-                </p>
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {[
-                    { label: '맥주/음료', val: '차가운 얼음과 물방울이 맺힌 시원한 느낌, 어두운 네이비 배경, 맥주 TV 광고 스타일' },
-                    { label: '라면/분식', val: '뜨끈한 김이 모락모락, 빨간색과 주황색 불꽃 효과, 라면 TV 광고처럼 따뜻하고 역동적인 느낌' },
-                    { label: '과자/디저트', val: '달콤한 파스텔 핑크와 크림색 배경, 부드러운 조명, 디저트 브랜드 광고 느낌' },
-                    { label: '건강식', val: '깨끗하고 신선한 초록과 흰색 배경, 자연광, 건강식 브랜드 광고 느낌' },
-                    { label: '할인/특가', val: '강렬한 빨간색과 노란색, 폭발적인 세일 배너, 대형마트 할인 광고 느낌' },
-                    { label: '프리미엄', val: '어두운 블랙 배경에 골드 포인트, 고급 브랜드 광고처럼 미니멀하고 세련된 느낌' },
-                  ].map(p => (
-                    <button key={p.label} onClick={() => setMoodDesc(p.val)}
-                      className={`px-3.5 py-2 rounded-xl text-[13px] font-bold transition-all active:scale-95 border ${
-                        moodDesc === p.val ? 'bg-violet-500 text-white border-violet-500 shadow-sm' : 'bg-white text-gray-700 border-gray-200'
-                      }`}>
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-                <textarea
-                  value={moodDesc}
-                  onChange={e => setMoodDesc(e.target.value)}
-                  placeholder="위에 없는 느낌은 직접 적어주세요&#10;예: 여름 해변 느낌, 크리스마스 분위기, 깔끔한 흰 배경"
-                  rows={2}
-                  className="input resize-none"
-                />
-              </div>
             </div>
           )}
 
@@ -1405,15 +1307,81 @@ export default function Home() {
             <div className="space-y-3">
               <input ref={resolveFileRef} type="file" accept="image/*" onChange={photoFileChange} className="hidden" />
 
+              {/* 사진 ON/OFF — 선반/띠지만 (포스터는 사진 단계에서 상품별로 직접/AI/없이 선택) */}
+              {(popType === 'shelf' || popType === 'banner') && (
+                <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 pr-3">
+                      <p className="text-[13px] font-bold text-gray-800">상품 사진 사용</p>
+                      <p className="text-[13px] text-gray-500 mt-0.5">
+                        {photoEnabled ? '상품 사진을 POP에 넣어요.' : '텍스트만으로 만들어요.'}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => togglePhoto(!photoEnabled)}
+                      className={`relative w-14 h-8 rounded-full transition-colors shrink-0 ${
+                        photoEnabled ? 'bg-blue-500' : 'bg-gray-300'
+                      }`}>
+                      <div className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow transition-all ${
+                        photoEnabled ? 'left-7' : 'left-1'
+                      }`} />
+                    </button>
+                  </div>
+                  {photoEnabled && (
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <label className="text-[13px] font-bold text-gray-500 block mb-1">검색할 상품명</label>
+                      <input type="text" value={photoSearchName}
+                        onChange={e => { setPhotoSearchName(e.target.value); setPhotoSearched(false); setPhotoResolutions([]); }}
+                        placeholder="예: 농심 신라면 5개입 봉지" className="input" />
+                      <p className="text-[13px] text-gray-400 mt-1">브랜드·용량까지 자세히 적으면 사진이 정확하게 검색됩니다.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 분위기 — 포스터 전용 (배경 이미지 생성에 사용) */}
+              {popType === 'poster' && (
+                <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
+                  <label className="text-[13px] font-bold text-gray-500 block mb-1">배경 분위기 (선택)</label>
+                  <p className="text-[13px] text-gray-400 mb-3">
+                    여기서 고른 분위기로 <strong className="text-violet-500">배경 이미지</strong>가 만들어집니다. 비워두면 상품에 맞춰 자동으로 정해져요.
+                  </p>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {[
+                      { label: '맥주/음료', val: '차가운 얼음과 물방울이 맺힌 시원한 느낌, 어두운 네이비 배경, 맥주 TV 광고 스타일' },
+                      { label: '라면/분식', val: '뜨끈한 김이 모락모락, 빨간색과 주황색 불꽃 효과, 라면 TV 광고처럼 따뜻하고 역동적인 느낌' },
+                      { label: '과자/디저트', val: '달콤한 파스텔 핑크와 크림색 배경, 부드러운 조명, 디저트 브랜드 광고 느낌' },
+                      { label: '건강식', val: '깨끗하고 신선한 초록과 흰색 배경, 자연광, 건강식 브랜드 광고 느낌' },
+                      { label: '할인/특가', val: '강렬한 빨간색과 노란색, 폭발적인 세일 배너, 대형마트 할인 광고 느낌' },
+                      { label: '프리미엄', val: '어두운 블랙 배경에 골드 포인트, 고급 브랜드 광고처럼 미니멀하고 세련된 느낌' },
+                    ].map(p => (
+                      <button key={p.label} onClick={() => setMoodDesc(p.val)}
+                        className={`px-3.5 py-2 rounded-xl text-[13px] font-bold transition-all active:scale-95 border ${
+                          moodDesc === p.val ? 'bg-violet-500 text-white border-violet-500 shadow-sm' : 'bg-white text-gray-700 border-gray-200'
+                        }`}>
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                  <textarea
+                    value={moodDesc}
+                    onChange={e => setMoodDesc(e.target.value)}
+                    placeholder="위에 없는 느낌은 직접 적어주세요&#10;예: 여름 해변 느낌, 크리스마스 분위기, 깔끔한 흰 배경"
+                    rows={2}
+                    className="input resize-none"
+                  />
+                </div>
+              )}
+
               {/* 사진 OFF면 안내만 */}
               {!photoEnabled && (
                 <div className="py-4 text-center text-gray-400 text-[13px]">
-                  사진 없이 만들기로 설정됨. (이전 단계에서 변경 가능)
+                  사진 없이 만들기로 설정됨.
                 </div>
               )}
 
               {photoEnabled && photoResolutions.length === 0 && !photoSearched && (
-                <div className="py-10 text-center text-gray-400 text-[13px]">검색 시작 중...</div>
+                <div className="py-10 text-center text-gray-400 text-[13px]">사진 검색 중...</div>
               )}
 
               {photoEnabled && photoResolutions.map(r => {
@@ -1424,7 +1392,7 @@ export default function Home() {
                 const statusLabel = r.status === 'searching' ? '검색 중...'
                   : r.status === 'found' ? '자동 검색됨'
                   : r.status === 'user_uploaded' ? '직접 올림'
-                  : r.status === 'ai_generate' ? 'AI가 그릴 예정'
+                  : r.status === 'ai_generate' ? 'AI 생성 예정'
                   : '검색 결과 없음 — 직접 올려주세요';
                 return (
                   <div key={r.productIndex} className={`rounded-2xl border-2 p-3 shadow-sm ${bgClass}`}>
@@ -1434,7 +1402,7 @@ export default function Home() {
                         <p className="text-[13px] text-gray-500 mt-0.5">{statusLabel}</p>
                       </div>
                     </div>
-                    <div className="w-full rounded-xl bg-white border border-gray-200 flex items-center justify-center overflow-hidden" style={{ height: 300 }}>
+                    <div className="w-full rounded-xl bg-white border border-gray-200 flex items-center justify-center overflow-hidden" style={{ height: 200 }}>
                       {r.status === 'searching' ? (
                         <div className="w-6 h-6 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
                       ) : r.imageUrl ? (
@@ -1669,7 +1637,7 @@ export default function Home() {
                 <div className="flex">
                   <dt className="w-20 text-gray-500">사진</dt>
                   <dd className="flex-1 font-medium text-gray-800">
-                    {photoResolutions.filter(r => r.status === 'user_uploaded' || r.status === 'found').length}개 사용됨
+                    {photoResolutions.filter(r => r.status === 'user_uploaded' || r.status === 'found').length}개 등록됨
                   </dd>
                 </div>
               )}

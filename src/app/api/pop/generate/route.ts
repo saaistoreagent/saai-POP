@@ -255,11 +255,11 @@ JSON만:
         catchphrase,
         productImageBase64: productBase64Array[0] || null,
         productImages: productBase64Array.length > 0 ? productBase64Array : undefined,
+        // 포스터: Gemini가 캐치프레이즈를 직접 박음 (자연스러운 배치)
         embedKoreanText: popType === 'poster',
       });
 
       if (geminiImage) {
-        // 포스터: Gemini가 한글 직접 박은 이미지 그대로 사용 (Canvas 오버레이 X)
         bgImage = saveImageToPublic(geminiImage);
         fullImage = true;
       } else {
@@ -268,7 +268,7 @@ JSON만:
     } else if (category === 'badge') {
       // 배지 → Canvas 직접 렌더링
       const isLandscape = orientation === '가로';
-      const badgeImage = renderBadgeSheet(inputBadgeType || '1+1', isLandscape, inputBgColor);
+      const badgeImage = renderBadgeSheet(inputBadgeType || '', isLandscape, inputBgColor);
       bgImage = saveImageToPublic(badgeImage);
       fullImage = true;
     } else if (category === 'price' || category === 'strip') {

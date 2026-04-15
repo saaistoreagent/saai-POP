@@ -44,90 +44,47 @@ function buildPrompt(options: GeminiPOPOptions): string {
       // ─── 한글 텍스트를 Gemini가 직접 박는 모드 ───
       if (embedKoreanText) {
         const validProds = products.filter(p => p.name);
-        const allSamePrice = validProds.length >= 2 && validProds.every(p => p.price && p.price === validProds[0].price);
-        const hasBadge = badgeType && badgeType !== '없음';
-        const hasAnyPrice = validProds.some(p => p.price);
 
-        const textBlock: string[] = [];
-        if (catchphrase) {
-          textBlock.push(`HEADER (top center, very large bold white Korean text): "${catchphrase}"`);
-        }
-        if (hasBadge) {
-          textBlock.push(`BADGE (rounded yellow pill near header, dark text): "${badgeType}"`);
-        }
-        if (validProds.length === 1) {
-          const p = validProds[0];
-          textBlock.push(`PRODUCT NAME (bottom-left, white medium bold): "${p.name}"`);
-          if (p.originalPrice && p.price && p.originalPrice > p.price) {
-            textBlock.push(`ORIGINAL PRICE (small, white with red strikethrough line through it): "${p.originalPrice.toLocaleString('ko-KR')}원"`);
-          }
-          if (p.price) {
-            textBlock.push(`SALE PRICE (huge, golden yellow #FFD700, bottom-right): "${p.price.toLocaleString('ko-KR')}원"`);
-          }
-        } else if (allSamePrice) {
-          const p = validProds[0];
-          textBlock.push(`SUBHEADER (medium white, bottom area): "${validProds.length}개 골라담기"`);
-          if (p.originalPrice && p.price && p.originalPrice > p.price) {
-            textBlock.push(`ORIGINAL PRICE (small, white with red strikethrough): "${p.originalPrice.toLocaleString('ko-KR')}원"`);
-          }
-          textBlock.push(`UNIFIED SALE PRICE (very large golden yellow): "${p.price?.toLocaleString('ko-KR')}원"`);
-        } else if (hasAnyPrice) {
-          // 가격 다름 → 각 상품 라인 (가격 있는 것만)
-          textBlock.push(`PRODUCT LIST (bottom area, each product on one line, white name + yellow price):`);
-          validProds.forEach(p => {
-            if (p.price) {
-              textBlock.push(`  - "${p.name}" ... "${p.price.toLocaleString('ko-KR')}원"`);
-            } else {
-              textBlock.push(`  - "${p.name}" (no price shown)`);
-            }
-          });
-        }
-        // 가격 없으면 상품명 나열 안 함 — 사진으로 충분
+        // 포스터는 캐치프레이즈만 박음 — 가격/번들/상품명은 모두 캐치프레이즈 텍스트로 표현
+        const textLine = catchphrase
+          ? `Render this Korean text large, bold, white, on a calm/dark area of the image. You decide the best position, line breaks, and font size for visual balance with the products: "${catchphrase}"`
+          : '(no text — image only)';
 
-        const layoutHint = validProds.length === 1
-          ? `Center the single product (${main.name}) prominently in the middle, taking about 50% of the frame.`
-          : `Show all ${validProds.length} products together as ONE cohesive scene with shared lighting and background — like a real product photo shoot, NOT a grid or split panels. Arrange them naturally (gathered, slightly overlapping, or grouped).`;
+        const productLine = validProds.length === 1
+          ? `Show "${main.name}" as the main subject. Position and scale: you decide what looks best for an advertisement — it can be center, bottom, side, on a surface, etc. Just balance with the text area.`
+          : `Show all ${validProds.length} products together as ONE cohesive scene (shared lighting/background, NOT a grid or split panels). Arrange them naturally — gathered, overlapping, or grouped.`;
 
         return `Create a Korean convenience store advertisement poster. ${ratio} format.
 ${orientationStrict}
 
-═══ ABSOLUTE RULES — VIOLATIONS RUIN THE IMAGE ═══
+═══ ABSOLUTE RULES ═══
 
-1. **ONLY include the Korean texts I list below. Do NOT add ANY other text.**
-   - Do NOT invent prices that I did not give you.
-   - Do NOT invent product names or quantities or descriptions ("5개입", "봉지라면", "세트" etc) that I did not write.
-   - Do NOT add any store brand, franchise name, or logo (no "7-ELEVEN", no "GS25", no "CU", no "이마트24" — NOTHING).
-   - Do NOT add operating hours ("영업시간", "모정시간", "오전 10시 ~ 오후 10시" or similar).
-   - Do NOT add contact info, addresses, phone numbers, or website URLs.
-   - Do NOT add subtitles, taglines, or fine print that I did not provide.
-   - Do NOT add decorative text, product package text labels, or price tags that weren't listed.
-   - **If information is missing (like a price), LEAVE THAT FIELD OUT entirely. Do NOT make up a plausible value.**
+1. **ONLY render the Korean text I provide below. Do NOT add any other Korean text.**
+   - No invented prices, product names, store brands (7-ELEVEN/GS25/CU/이마트24), addresses, phone numbers, hours, taglines, or fine print.
+   - Product packaging may show its own natural brand/name text (it's part of the product photo, not poster text) — that's fine.
+   - If no text is provided below, generate the image with NO Korean text at all.
 
-2. **Only the EXACT text strings below may appear in Korean.** Every Korean character in the image must match one of these strings EXACTLY, character-for-character.
+2. Every Korean character in the image must match the provided text EXACTLY, character-for-character.
 
-═══ REQUIRED KOREAN TEXTS (these are the ONLY Korean texts allowed in the image) ═══
-${textBlock.length > 0 ? textBlock.join('\n') : '(no text — image only)'}
+═══ KOREAN TEXT TO RENDER ═══
+${textLine}
 
-Use a strong bold Korean display font (like Black Han Sans, Jalnan, Gmarket Sans, or Do Hyeon style — thick, impactful, advertisement style).
+Use a strong bold Korean display font (Black Han Sans, Jalnan, Gmarket Sans, Do Hyeon style — thick, advertisement-style).
 
-═══ PRODUCT VISUAL ═══
-${layoutHint}
+═══ PRODUCTS ═══
+${productLine}
 ${uploadedCount > 0
-  ? `You are receiving ${uploadedCount} reference photo(s) as input. Use them as the actual product(s) — preserve label, branding, color, and packaging EXACTLY. Do NOT generate generic versions. The product packaging may contain its own Korean text (brand name, product name on the package) — THAT is allowed because it's part of the actual product photo, not poster text.`
-  : `Generate realistic photos of: ${productList}. The product packaging itself may show its natural brand/name text (that's fine, it's part of the product). But do NOT add any additional poster text beyond what I listed above.`}
+  ? `You are receiving ${uploadedCount} reference photo(s). Use them as the actual product(s) — preserve label, branding, color, packaging EXACTLY. Do NOT generate generic versions.`
+  : `Generate realistic photos of: ${productList}.`}
 
 ═══ STYLE ═══
-- Professional advertising quality, dramatic studio lighting
-- ${direction || 'clean background matching the products'}
-- Simple, uncluttered layout — empty space is OK
-- No background props like cashiers, shelves with other products, storefronts, or in-store scenes unless the user explicitly asked for it
-- High contrast so the required Korean text is clearly readable
-- Print-ready, A4 quality
+${direction
+  ? `Follow this user-provided mood/style direction strictly: "${direction}"`
+  : `Clean background that matches the products. Professional advertising quality.`}
+Print-ready A4 quality. Ensure good contrast where text sits so Korean is clearly readable.
 
-═══ FINAL REMINDER ═══
-- KOREAN TEXT: only the exact strings listed in the REQUIRED KOREAN TEXTS section. Nothing more, nothing less. Every character exact.
-- NO invented prices, NO invented names, NO store brand, NO hours, NO extra anything.
-- This is a Korean POP — Koreans will check every character, every number, every detail. Invented content = image is unusable.`;
+═══ REMINDER ═══
+- Korean text: only the exact string above. Every character exact. No extras.`;
       }
 
       if (productCount <= 1) {
