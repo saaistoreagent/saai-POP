@@ -183,6 +183,14 @@ export default function Home() {
     return () => window.removeEventListener('beforeunload', handler);
   }, [generating, refining]);
 
+  // 생성 중 페이지 이탈 경고
+  useEffect(() => {
+    if (!generating) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [generating]);
+
   // 생성 진행률 — 포스터(Gemini)는 점진적, 캔버스(배지/선반/띠지)는 빠르게
   useEffect(() => {
     if (!generating) { setGenProgress(0); return; }
@@ -193,16 +201,16 @@ export default function Home() {
       const t = setTimeout(() => setGenProgress(90), 300);
       return () => clearTimeout(t);
     }
-    // 포스터(AI): 보통 10~25초 소요
-    setGenProgress(5);
-    let progress = 5;
+    // 포스터(AI): 보통 12~25초 소요 — 시간 기반 부드러운 증가
+    const startedAt = Date.now();
+    const expectedMs = 18000; // 예상 소요시간
+    setGenProgress(3);
     const interval = setInterval(() => {
-      // 90%까지 점진적 증가, 이후 API 완료까지 대기
-      if (progress < 90) {
-        progress += Math.max(1, Math.floor((90 - progress) * 0.08));
-        setGenProgress(progress);
-      }
-    }, 800);
+      const elapsed = Date.now() - startedAt;
+      // 지수 감쇠로 점근 90% 도달 (절대 90% 안 넘음)
+      const target = 90 * (1 - Math.exp(-elapsed / (expectedMs / 2.3)));
+      setGenProgress(prev => Math.max(prev, Math.round(target)));
+    }, 200);
     return () => clearInterval(interval);
   }, [generating, popType]);
 
@@ -802,10 +810,7 @@ export default function Home() {
           <div className="px-4 py-4 space-y-3">
             {/* POP 문구 */}
             <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[13px] font-bold text-gray-700">POP 문구</span>
-                <span className="text-[12px] text-gray-400">선택</span>
-              </div>
+              <p className="text-[13px] font-bold text-gray-700 mb-2">POP 문구</p>
               <div className="flex flex-wrap gap-2">
                 {BADGE_PRESETS.map(b => {
                   const active = badgeType === b;
@@ -820,7 +825,7 @@ export default function Home() {
               <textarea
                 value={badgeType === '없음' ? '' : badgeType}
                 onChange={e => { setBadgeType(e.target.value); setBadgeFromPreset(false); }}
-                placeholder="직접 입력 (줄바꿈 가능)"
+                placeholder="직접 입력"
                 rows={2}
                 className="input resize-none mt-2 text-[13px]" />
             </div>
@@ -831,53 +836,43 @@ export default function Home() {
               return (
                 <div key={i} data-product-card className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-[13px] font-bold text-gray-700">상품 {products.length > 1 ? `${i + 1}` : ''}</span>
-                    {products.length > 1 ? (
+                    <span className="text-[13px] font-bold text-gray-700">상품{products.length > 1 ? ` ${i + 1}` : ''}</span>
+                    {products.length > 1 && (
                       <button onClick={() => removeProduct(i)} className="text-[13px] text-red-400">삭제</button>
-                    ) : (
-                      <span className="text-[12px] text-gray-400">선택</span>
                     )}
                   </div>
 
-                  {/* 상품 이름 (POP 표시용) */}
-                  <div>
-                    <label className="text-[12px] text-gray-500 block mb-1">상품 이름 <span className="text-gray-400">(POP에 표시)</span></label>
-                    <input type="text" value={p.name}
-                      onChange={e => updateProduct(i, 'name', e.target.value)}
-                      placeholder="예: 신라면" className="input" />
-                  </div>
+                  <input type="text" value={p.name}
+                    onChange={e => updateProduct(i, 'name', e.target.value)}
+                    placeholder="상품 이름 (예: 신라면)" className="input" />
 
-                  {/* 사진 검색 */}
-                  <div>
-                    <label className="text-[12px] text-gray-500 block mb-1">사진 검색 <span className="text-gray-400">(선택)</span></label>
-                    <div className="flex gap-2">
-                      <input type="text"
-                        defaultValue={p.displayName || ''}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
-                            const val = (e.target as HTMLInputElement).value.trim();
-                            if (val.length >= 2) {
-                              updateProduct(i, 'displayName', val);
-                              setPhotoSearchName(val);
-                              setPhotoSearched(false);
-                              searchProductPhotos();
-                            }
+                  <div className="flex gap-2">
+                    <input type="text"
+                      defaultValue={p.displayName || ''}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                          const val = (e.target as HTMLInputElement).value.trim();
+                          if (val.length >= 2) {
+                            updateProduct(i, 'displayName', val);
+                            setPhotoSearchName(val);
+                            setPhotoSearched(false);
+                            searchProductPhotos();
                           }
-                        }}
-                        placeholder="검색어 입력 후 엔터" className="input flex-1" />
-                      <button onClick={(e) => {
-                        const input = (e.currentTarget.parentElement!.querySelector('input') as HTMLInputElement);
-                        const val = input.value.trim();
-                        if (val.length >= 2) {
-                          updateProduct(i, 'displayName', val);
-                          setPhotoSearchName(val);
-                          setPhotoSearched(false);
-                          searchProductPhotos();
                         }
-                      }} className="px-4 rounded-xl bg-blue-500 text-white text-[13px] font-bold active:bg-blue-600">
-                        검색
-                      </button>
-                    </div>
+                      }}
+                      placeholder="사진 검색어 (엔터)" className="input flex-1" />
+                    <button onClick={(e) => {
+                      const input = (e.currentTarget.parentElement!.querySelector('input') as HTMLInputElement);
+                      const val = input.value.trim();
+                      if (val.length >= 2) {
+                        updateProduct(i, 'displayName', val);
+                        setPhotoSearchName(val);
+                        setPhotoSearched(false);
+                        searchProductPhotos();
+                      }
+                    }} className="px-4 rounded-xl bg-blue-500 text-white text-[13px] font-bold active:bg-blue-600">
+                      검색
+                    </button>
                   </div>
 
                   {/* 선택된 사진 */}
@@ -912,18 +907,12 @@ export default function Home() {
                     </button>
                   )}
                   <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-[12px] text-gray-500 block mb-1">판매가</label>
-                      <input type="number" inputMode="numeric" value={p.price}
-                        onChange={e => updateProduct(i, 'price', e.target.value)}
-                        placeholder="2,500" className="input" />
-                    </div>
-                    <div>
-                      <label className="text-[12px] text-gray-400 block mb-1">정가</label>
-                      <input type="number" inputMode="numeric" value={p.originalPrice}
-                        onChange={e => updateProduct(i, 'originalPrice', e.target.value)}
-                        placeholder="3,200" className="input text-gray-400" />
-                    </div>
+                    <input type="number" inputMode="numeric" value={p.price}
+                      onChange={e => updateProduct(i, 'price', e.target.value)}
+                      placeholder="할인가" className="input" />
+                    <input type="number" inputMode="numeric" value={p.originalPrice}
+                      onChange={e => updateProduct(i, 'originalPrice', e.target.value)}
+                      placeholder="정가" className="input text-gray-500" />
                   </div>
                 </div>
               );
@@ -987,14 +976,21 @@ export default function Home() {
         </main>
 
         <div className="sticky bottom-0 z-20 bg-white/95 backdrop-blur-lg border-t border-gray-100 px-4 pt-3 pb-3">
+          {generating && popType === 'poster' && (
+            <p className="text-[12px] text-gray-500 text-center mb-2">⚠️ 페이지를 벗어나면 생성이 중단됩니다.</p>
+          )}
           <button onClick={() => confirmAndGenerate()} disabled={generating}
-            className="w-full py-4 rounded-2xl text-white font-bold text-base bg-gradient-to-r from-blue-500 to-violet-500 shadow-lg shadow-blue-500/30 disabled:opacity-40">
-            {generating ? (
-              <span className="flex items-center justify-center gap-2">
+            className="relative w-full py-4 rounded-2xl text-white font-bold text-base bg-gradient-to-r from-blue-500 to-violet-500 shadow-lg shadow-blue-500/30 disabled:opacity-60 overflow-hidden">
+            {generating && popType === 'poster' && (
+              <span className="absolute inset-y-0 left-0 bg-white/20 transition-all duration-500 ease-out"
+                style={{ width: `${genProgress}%` }} />
+            )}
+            <span className="relative inline-flex items-center justify-center gap-2">
+              {generating && popType !== 'poster' && (
                 <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                생성 중...
-              </span>
-            ) : 'POP 만들기'}
+              )}
+              {generating ? (popType === 'poster' ? `생성 중... ${genProgress}%` : '생성 중...') : 'POP 만들기'}
+            </span>
           </button>
         </div>
       </div>
@@ -1112,7 +1108,7 @@ export default function Home() {
                     );
                   })}
                 </div>
-                <p className="text-[13px] text-gray-500 mt-3 mb-1">위에 없는 문구는 여기에 직접 입력해주세요 (줄바꿈 가능)</p>
+                <p className="text-[13px] text-gray-500 mt-3 mb-1">원하는 문구를 자유롭게 적어주세요.<br /><span className="text-violet-500 font-medium">홍보할 내용을 적고 &lsquo;AI 추천&rsquo;을 누르면 문구를 다듬어드려요.</span></p>
                 <div className="flex gap-2 items-start">
                   <textarea
                     value={badgeType === '없음' ? '' : badgeType}
@@ -1251,7 +1247,7 @@ export default function Home() {
                     );
                   })}
                 </div>
-                <p className="text-[13px] text-gray-500 mt-3 mb-1">위에 없는 문구는 여기에 직접 입력해주세요 (줄바꿈 가능)</p>
+                <p className="text-[13px] text-gray-500 mt-3 mb-1">원하는 문구를 자유롭게 적어주세요.<br /><span className="text-violet-500 font-medium">홍보할 내용을 적고 &lsquo;AI 추천&rsquo;을 누르면 문구를 다듬어드려요.</span></p>
                 <div className="flex gap-2 items-start">
                   <textarea
                     value={badgeType === '없음' ? '' : badgeType}
@@ -1548,21 +1544,27 @@ export default function Home() {
           )}
         </main>
 
-        <div className="sticky bottom-0 z-20 bg-white/95 backdrop-blur-lg border-t border-gray-100 px-4 pt-3 pb-3 flex gap-2">
+        <div className="sticky bottom-0 z-20 bg-white/95 backdrop-blur-lg border-t border-gray-100 px-4 pt-3 pb-3">
+          {generating && popType === 'poster' && (
+            <p className="text-[12px] text-gray-500 text-center mb-2">⚠️ 페이지를 벗어나면 생성이 중단됩니다.</p>
+          )}
+          <div className="flex gap-2">
           <button onClick={prevStep}
             className="px-5 py-4 rounded-2xl text-sm font-bold bg-gray-100 text-gray-700 active:bg-gray-200">
             {wizardStep === 1 ? '취소' : '이전'}
           </button>
 
           <button onClick={nextStep} disabled={!canNext || generating}
-            className="flex-1 py-4 rounded-2xl text-white font-bold text-base bg-gradient-to-r from-blue-500 to-violet-500 shadow-lg shadow-blue-500/30 disabled:opacity-40 disabled:shadow-none">
-            {generating ? (
-              <span className="flex items-center justify-center gap-2">
-                <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                생성 중...
-              </span>
-            ) : wizardStep === totalSteps ? '만들기' : '다음'}
+            className="relative flex-1 py-4 rounded-2xl text-white font-bold text-base bg-gradient-to-r from-blue-500 to-violet-500 shadow-lg shadow-blue-500/30 disabled:opacity-60 disabled:shadow-none overflow-hidden">
+            {generating && (
+              <span className="absolute inset-y-0 left-0 bg-white/20 transition-all duration-500 ease-out"
+                style={{ width: `${genProgress}%` }} />
+            )}
+            <span className="relative">
+              {generating ? `생성 중... ${genProgress}%` : wizardStep === totalSteps ? '만들기' : '다음'}
+            </span>
           </button>
+          </div>
         </div>
       </div>
     );
@@ -1724,20 +1726,26 @@ export default function Home() {
           )}
         </main>
 
-        <div className="sticky bottom-0 z-20 bg-white/95 backdrop-blur-lg border-t border-gray-100 px-4 pt-3 pb-3 flex gap-2">
-          <button onClick={() => setView('form')}
-            className="px-5 py-4 rounded-2xl text-sm font-bold bg-gray-100 text-gray-700 active:bg-gray-200">
-            수정
-          </button>
-          <button onClick={() => confirmAndGenerate()} disabled={suggesting || generating}
-            className="flex-1 py-4 rounded-2xl text-white font-bold text-base bg-gradient-to-r from-blue-500 to-violet-500 shadow-lg shadow-blue-500/30 active:scale-[0.98] transition-transform disabled:opacity-40">
-            {generating ? (
-              <span className="flex items-center justify-center gap-2">
-                <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                생성 중...
+        <div className="sticky bottom-0 z-20 bg-white/95 backdrop-blur-lg border-t border-gray-100 px-4 pt-3 pb-3">
+          {generating && popType === 'poster' && (
+            <p className="text-[12px] text-gray-500 text-center mb-2">⚠️ 페이지를 벗어나면 생성이 중단됩니다.</p>
+          )}
+          <div className="flex gap-2">
+            <button onClick={() => setView('form')}
+              className="px-5 py-4 rounded-2xl text-sm font-bold bg-gray-100 text-gray-700 active:bg-gray-200">
+              수정
+            </button>
+            <button onClick={() => confirmAndGenerate()} disabled={suggesting || generating}
+              className="relative flex-1 py-4 rounded-2xl text-white font-bold text-base bg-gradient-to-r from-blue-500 to-violet-500 shadow-lg shadow-blue-500/30 active:scale-[0.98] transition-transform disabled:opacity-60 overflow-hidden">
+              {generating && (
+                <span className="absolute inset-y-0 left-0 bg-white/20 transition-all duration-500 ease-out"
+                  style={{ width: `${genProgress}%` }} />
+              )}
+              <span className="relative">
+                {generating ? `생성 중... ${genProgress}%` : '이대로 만들기'}
               </span>
-            ) : '이대로 만들기'}
-          </button>
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -1842,11 +1850,12 @@ export default function Home() {
                   <>
                     {/* POP에 들어간 텍스트 목록 — 빠른 선택 */}
                     {(() => {
-                      const texts = [
+                      const texts = Array.from(new Set([
                         badgeType && badgeType !== '없음' ? badgeType : null,
-                        products[0]?.name?.trim() || null,
+                        // 포스터는 상품명을 이미지에 박지 않으므로 칩에서 제외
+                        popType !== 'poster' ? (products[0]?.name?.trim() || null) : null,
                         catchphrase?.trim() || null,
-                      ].filter(Boolean) as string[];
+                      ].filter(Boolean) as string[]));
                       return texts.length > 0 && !refineStep1 ? (
                         <div className="flex flex-wrap gap-1.5">
                           {texts.map(t => (
