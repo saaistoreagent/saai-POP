@@ -115,12 +115,58 @@ export default function Home() {
   const [genProgress, setGenProgress] = useState(0); // 0~100 진행률 시뮬레이션
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [resultAspect, setResultAspect] = useState<number>(1); // width/height
+  // 실시간 미리보기 (canvas POPs 전용)
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const photoSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [chat, setChat] = useState<ChatMessage[]>([]);
   const [refineInput, setRefineInput] = useState('');
   const [refining, setRefining] = useState(false);
   const [refineMode, setRefineMode] = useState<'text' | 'color' | 'bg' | null>(null);
   const [refineStep1, setRefineStep1] = useState('');
   const [refineStep2, setRefineStep2] = useState('');
+
+  // 실시간 미리보기 (canvas POPs: badge/shelf/banner) — 샘플 스타일 (상품 1개만)
+  async function generatePreview() {
+    if (popType === 'poster') return;
+    setPreviewLoading(true);
+    try {
+      const cat = popType === 'banner' ? 'strip' : popType === 'shelf' ? 'price' : 'badge';
+      const mainProduct = products[0];
+      const resolvedImages = getResolvedImages();
+      const res = await fetch('/api/pop/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productName: mainProduct?.name.trim() || '',
+          originalPrice: mainProduct?.originalPrice ? Number(mainProduct.originalPrice) : null,
+          price: mainProduct?.price ? Number(mainProduct.price) : null,
+          category: cat,
+          bgColor,
+          badgeType: badgeType && badgeType !== '없음' ? badgeType : null,
+          productImages: resolvedImages.slice(0, 1), // 미리보기는 첫 상품 사진만
+          noSearch: true,
+          orientation,
+          // 미리보기는 첫 상품만 (추가 상품 제외)
+          additionalProducts: [],
+        }),
+      });
+      const data = await res.json();
+      if (data.bgImage) setPreviewImage(data.bgImage);
+    } catch {} finally {
+      setPreviewLoading(false);
+    }
+  }
+
+  // 입력 변경 시 미리보기 자동 업데이트 (debounced 400ms)
+  useEffect(() => {
+    if (view !== 'form' || popType === 'poster') return;
+    if (previewTimer.current) clearTimeout(previewTimer.current);
+    previewTimer.current = setTimeout(() => generatePreview(), 400);
+    return () => { if (previewTimer.current) clearTimeout(previewTimer.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, popType, badgeType, products, bgColor, orientation, photoResolutions]);
 
   // 채팅 스크롤
   useEffect(() => {
@@ -442,7 +488,8 @@ export default function Home() {
 
   // photoResolutions에서 상품별 최종 이미지 URL 가져오기
   function getResolvedImages(): (string | null)[] {
-    if (!photoEnabled) return [];
+    // canvas POP 단일 페이지는 photoEnabled 체크 안함
+    if (popType === 'poster' && !photoEnabled) return [];
 
     // photoResolutions에 있는 이미지 수집
     if (photoResolutions.length > 0) {
@@ -688,6 +735,277 @@ export default function Home() {
   // ═══════════════════════════════════════════
   // 폼 (위저드)
   // ═══════════════════════════════════════════
+  // ═══════════════════════════════════════════
+  // Canvas POP (배지/선반/띠지) — 단일 페이지 + 실시간 미리보기
+  // ═══════════════════════════════════════════
+  if (view === 'form' && popType !== 'poster') {
+    return (
+      <div className="app-shell pb-safe">
+        <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-lg border-b border-gray-100 pt-safe">
+          <div className="h-14 px-3 flex items-center gap-2">
+            <button onClick={backToLanding}
+              className="w-9 h-9 rounded-full flex items-center justify-center text-gray-500 active:bg-gray-100">
+              <span className="text-xl">←</span>
+            </button>
+            <h1 className="font-bold text-[14px] leading-tight">{currentType.label}</h1>
+          </div>
+        </header>
+
+        <main className="flex-1 min-h-0 overflow-y-auto pb-32">
+          {/* 이렇게 나와요 — 샘플 미리보기 (1칸만 정확히 크롭) */}
+          {(() => {
+            // A4 세로(794x1123), A4 가로(1123x794)
+            // 각 POP 1칸의 크기와 전체 크기
+            const cells: Record<string, { cellW: number; cellH: number; totalW: number; totalH: number }> = {
+              'banner-세로': { cellW: 794, cellH: 1123 / 4, totalW: 794, totalH: 1123 },
+              'banner-가로': { cellW: 1123, cellH: 794 / 3, totalW: 1123, totalH: 794 },
+              'shelf-세로': { cellW: 794, cellH: 1123 / 4, totalW: 794, totalH: 1123 },
+              'shelf-가로': { cellW: 1123, cellH: 794 / 3, totalW: 1123, totalH: 794 },
+              'badge-세로': { cellW: 794 / 3, cellH: 1123 / 5, totalW: 794, totalH: 1123 },
+              'badge-가로': { cellW: 1123 / 4, cellH: 794 / 3, totalW: 1123, totalH: 794 },
+            };
+            const key = `${popType}-${orientation}`;
+            const cfg = cells[key] || { cellW: 794, cellH: 280, totalW: 794, totalH: 1123 };
+            const aspectRatio = cfg.cellW / cfg.cellH;
+            const widthPct = (cfg.totalW / cfg.cellW) * 100;
+            const heightPct = (cfg.totalH / cfg.cellH) * 100;
+            return (
+              <div className="sticky top-0 z-20 bg-gray-50 border-b border-gray-100 px-2 pt-2 pb-2">
+                <p className="text-[12px] font-bold text-gray-500 px-1 mb-1">이렇게 나와요 <span className="text-gray-400 font-normal">(상품 1개 기준 예시)</span></p>
+                <div className="relative bg-white rounded-lg border border-gray-200 overflow-hidden"
+                  style={{
+                    aspectRatio,
+                    backgroundImage: previewImage ? `url(${previewImage})` : undefined,
+                    backgroundSize: `${widthPct}% ${heightPct}%`,
+                    backgroundPosition: '0 0',
+                    backgroundRepeat: 'no-repeat',
+                    transition: 'opacity 0.2s',
+                    opacity: previewLoading && previewImage ? 0.5 : 1,
+                  }}>
+                  {!previewImage && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-white">
+                      <div className="w-5 h-5 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
+                    </div>
+                  )}
+                  {previewLoading && previewImage && (
+                    <div className="absolute top-2 right-2 w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin bg-white/80" />
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* 옵션 카드 스택 */}
+          <div className="px-4 py-4 space-y-3">
+            {/* POP 문구 */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[13px] font-bold text-gray-700">POP 문구</span>
+                <span className="text-[12px] text-gray-400">선택</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {BADGE_PRESETS.map(b => {
+                  const active = badgeType === b;
+                  return (
+                    <button key={b} onClick={() => { setBadgeType(b); setBadgeFromPreset(true); }}
+                      className={`px-3 py-1.5 rounded-lg text-[13px] font-bold border ${
+                        active ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-gray-700 border-gray-200'
+                      }`}>{b}</button>
+                  );
+                })}
+              </div>
+              <textarea
+                value={badgeType === '없음' ? '' : badgeType}
+                onChange={e => { setBadgeType(e.target.value); setBadgeFromPreset(false); }}
+                placeholder="직접 입력 (줄바꿈 가능)"
+                rows={2}
+                className="input resize-none mt-2 text-[13px]" />
+            </div>
+
+            {/* 상품 (이미지 + 이름 + 가격) */}
+            {products.map((p, i) => {
+              const photoRes = photoResolutions.find(r => r.productIndex === i);
+              return (
+                <div key={i} data-product-card className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-bold text-gray-700">상품 {products.length > 1 ? `${i + 1}` : ''}</span>
+                    {products.length > 1 ? (
+                      <button onClick={() => removeProduct(i)} className="text-[13px] text-red-400">삭제</button>
+                    ) : (
+                      <span className="text-[12px] text-gray-400">선택</span>
+                    )}
+                  </div>
+
+                  {/* 상품 이름 (POP 표시용) */}
+                  <div>
+                    <label className="text-[12px] text-gray-500 block mb-1">상품 이름 <span className="text-gray-400">(POP에 표시)</span></label>
+                    <input type="text" value={p.name}
+                      onChange={e => updateProduct(i, 'name', e.target.value)}
+                      placeholder="예: 신라면" className="input" />
+                  </div>
+
+                  {/* 사진 검색 */}
+                  <div>
+                    <label className="text-[12px] text-gray-500 block mb-1">사진 검색 <span className="text-gray-400">(선택)</span></label>
+                    <div className="flex gap-2">
+                      <input type="text"
+                        defaultValue={p.displayName || ''}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                            const val = (e.target as HTMLInputElement).value.trim();
+                            if (val.length >= 2) {
+                              updateProduct(i, 'displayName', val);
+                              setPhotoSearchName(val);
+                              setPhotoSearched(false);
+                              searchProductPhotos();
+                            }
+                          }
+                        }}
+                        placeholder="검색어 입력 후 엔터" className="input flex-1" />
+                      <button onClick={(e) => {
+                        const input = (e.currentTarget.parentElement!.querySelector('input') as HTMLInputElement);
+                        const val = input.value.trim();
+                        if (val.length >= 2) {
+                          updateProduct(i, 'displayName', val);
+                          setPhotoSearchName(val);
+                          setPhotoSearched(false);
+                          searchProductPhotos();
+                        }
+                      }} className="px-4 rounded-xl bg-blue-500 text-white text-[13px] font-bold active:bg-blue-600">
+                        검색
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 선택된 사진 */}
+                  {photoRes?.imageUrl && (
+                    <div className="rounded-xl overflow-hidden bg-gray-50 border border-gray-200" style={{ height: 140 }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={displayUrl(photoRes.imageUrl)} alt="" className="w-full h-full object-contain" />
+                    </div>
+                  )}
+
+                  {/* 3가지 등록 방식 — 검색 안 했을 때 안내 + 3개 버튼 */}
+                  {!photoRes?.imageUrl && (
+                    <div className="rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-center" style={{ height: 100 }}>
+                      <p className="text-[13px] text-gray-400">아래에서 사진을 등록해주세요</p>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <button onClick={() => photoUploadClick(i)}
+                      className="py-2 rounded-lg text-[12px] font-bold bg-white border border-gray-300 text-gray-700 active:bg-gray-100">
+                      직접 올리기
+                    </button>
+                    <button onClick={() => photoFindAnother(i)} disabled={!photoRes?.candidates || photoRes.candidates.length <= 1}
+                      className="py-2 rounded-lg text-[12px] font-bold bg-white border border-gray-300 text-gray-700 active:bg-gray-100 disabled:opacity-40">
+                      다른 이미지
+                    </button>
+                    <button onClick={() => photoUseAI(i)}
+                      className={`py-2 rounded-lg text-[12px] font-bold border ${
+                        photoRes?.status === 'ai_generate'
+                          ? 'bg-violet-500 text-white border-violet-500'
+                          : 'bg-white border-gray-300 text-gray-700 active:bg-gray-100'
+                      }`}>
+                      AI가 그리기
+                    </button>
+                  </div>
+                  {photoRes?.imageUrl && (
+                    <button onClick={() => setPhotoResolutions(prev => prev.map(r => r.productIndex === i ? { ...r, imageUrl: undefined, status: 'missing', candidates: undefined } : r))}
+                      className="w-full py-1.5 text-[12px] text-red-400">
+                      사진 없이 만들기
+                    </button>
+                  )}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[12px] text-gray-500 block mb-1">판매가</label>
+                      <input type="number" inputMode="numeric" value={p.price}
+                        onChange={e => updateProduct(i, 'price', e.target.value)}
+                        placeholder="2,500" className="input" />
+                    </div>
+                    <div>
+                      <label className="text-[12px] text-gray-400 block mb-1">정가</label>
+                      <input type="number" inputMode="numeric" value={p.originalPrice}
+                        onChange={e => updateProduct(i, 'originalPrice', e.target.value)}
+                        placeholder="3,200" className="input text-gray-400" />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {(() => {
+              const maxProducts = popType === 'banner' ? (orientation === '가로' ? 3 : 4) : (orientation === '가로' ? 3 : 4);
+              return products.length < maxProducts ? (
+                <button onClick={() => {
+                  addProduct();
+                  // 추가 후 잠시 뒤 새 카드로 스크롤
+                  setTimeout(() => {
+                    const cards = document.querySelectorAll('[data-product-card]');
+                    const last = cards[cards.length - 1];
+                    if (last) last.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }, 100);
+                }}
+                  className="w-full py-3 rounded-xl border-2 border-dashed border-gray-300 text-sm text-blue-500 font-bold active:bg-blue-50">
+                  + 상품 추가 <span className="text-[12px] text-gray-400 ml-1">({products.length}/{maxProducts})</span>
+                </button>
+              ) : null;
+            })()}
+
+            {/* 배경색 */}
+            {(popType === 'shelf' || popType === 'banner' || popType === 'badge') && (
+              <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[13px] font-bold text-gray-700">배경색</span>
+                  <span className="text-[12px] text-gray-400">{colorName(bgColor)}</span>
+                </div>
+                <input ref={resolveFileRef} type="file" accept="image/*" onChange={photoFileChange} className="hidden" />
+                <div className="grid grid-cols-8 gap-2">
+                  {BG_COLORS.map(c => {
+                    const active = bgColor === c.hex;
+                    return (
+                      <button key={c.hex} onClick={() => setBgColor(c.hex)}
+                        className={`aspect-square rounded-xl active:scale-90 ${active ? 'ring-2 ring-offset-2 ring-blue-500' : ''}`}
+                        style={{ backgroundColor: c.hex }} title={c.name} />
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* 방향 */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
+              <span className="text-[13px] font-bold text-gray-700 block mb-2">용지 방향</span>
+              <div className="grid grid-cols-2 gap-2">
+                {(['세로', '가로'] as const).map(o => {
+                  const active = orientation === o;
+                  return (
+                    <button key={o} onClick={() => setOrientation(o)}
+                      className={`py-3 rounded-xl text-sm font-bold border-2 ${
+                        active ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-gray-600 border-gray-200'
+                      }`}>{o}</button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </main>
+
+        <div className="sticky bottom-0 z-20 bg-white/95 backdrop-blur-lg border-t border-gray-100 px-4 pt-3 pb-3">
+          <button onClick={() => confirmAndGenerate()} disabled={generating}
+            className="w-full py-4 rounded-2xl text-white font-bold text-base bg-gradient-to-r from-blue-500 to-violet-500 shadow-lg shadow-blue-500/30 disabled:opacity-40">
+            {generating ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                생성 중...
+              </span>
+            ) : 'POP 만들기'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (view === 'form') {
     // 단계 제목 / 설명
     let stepTitle = '', stepDesc = '';
