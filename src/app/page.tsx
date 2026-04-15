@@ -114,6 +114,7 @@ export default function Home() {
   const [generating, setGenerating] = useState(false);
   const [genProgress, setGenProgress] = useState(0); // 0~100 진행률 시뮬레이션
   const [resultImage, setResultImage] = useState<string | null>(null);
+  const [resultAspect, setResultAspect] = useState<number>(1); // width/height
   const [chat, setChat] = useState<ChatMessage[]>([]);
   const [refineInput, setRefineInput] = useState('');
   const [refining, setRefining] = useState(false);
@@ -512,13 +513,14 @@ export default function Home() {
 
       if (data.bgImage) {
         setGenProgress(100);
-        // 이미지를 미리 로드해서 레이아웃 깨짐 방지
-        await new Promise<void>((resolve) => {
+        // 이미지를 미리 로드해서 레이아웃 깨짐 방지 + aspect 측정
+        const aspect = await new Promise<number>((resolve) => {
           const img = new Image();
-          img.onload = () => resolve();
-          img.onerror = () => resolve();
+          img.onload = () => resolve(img.naturalWidth / img.naturalHeight);
+          img.onerror = () => resolve(1);
           img.src = data.bgImage;
         });
+        setResultAspect(aspect);
         setResultImage(data.bgImage);
         setView('result');
         setGenerating(false);
@@ -957,10 +959,24 @@ export default function Home() {
                   )}
                 </div>
               ))}
-              <button onClick={addProduct}
-                className="w-full py-3 rounded-xl border-2 border-dashed border-gray-300 text-sm text-blue-500 font-bold active:bg-blue-50">
-                + 상품 추가
-              </button>
+              {(() => {
+                // 띠지/선반 방향별 상품 최대 개수
+                const maxProducts = popType === 'banner'
+                  ? (orientation === '가로' ? 3 : 4)
+                  : popType === 'shelf'
+                  ? (orientation === '가로' ? 3 : 4)
+                  : 99;
+                return products.length < maxProducts ? (
+                  <button onClick={addProduct}
+                    className="w-full py-3 rounded-xl border-2 border-dashed border-gray-300 text-sm text-blue-500 font-bold active:bg-blue-50">
+                    + 상품 추가 <span className="text-[12px] text-gray-400 ml-1">({products.length}/{maxProducts})</span>
+                  </button>
+                ) : (
+                  <p className="text-[12px] text-gray-400 text-center py-2">
+                    {orientation} 방향은 상품 최대 {maxProducts}개까지
+                  </p>
+                );
+              })()}
             </div>
           )}
 
@@ -1253,7 +1269,7 @@ export default function Home() {
           </button>
 
           <button onClick={nextStep} disabled={!canNext || generating}
-            className="flex-1 py-4 rounded-2xl text-white font-bold text-base bg-gradient-to-r from-blue-500 to-violet-500 shadow-lg shadow-blue-500/30 active:scale-[0.98] transition-transform disabled:opacity-40 disabled:shadow-none">
+            className="flex-1 py-4 rounded-2xl text-white font-bold text-base bg-gradient-to-r from-blue-500 to-violet-500 shadow-lg shadow-blue-500/30 disabled:opacity-40 disabled:shadow-none">
             {generating ? (
               <span className="flex items-center justify-center gap-2">
                 <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -1464,9 +1480,10 @@ export default function Home() {
         <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
           {resultImage && (
             <>
-              <div className={`rounded-xl overflow-hidden bg-gray-50 border border-gray-100 mb-3 ${refining ? 'opacity-50' : ''}`}>
+              <div className={`w-full rounded-xl overflow-hidden bg-gray-50 border border-gray-100 mb-3 ${refining ? 'opacity-50' : ''}`}
+                style={{ aspectRatio: resultAspect }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={resultImage} alt="생성된 POP" className="w-full h-auto"
+                <img src={resultImage} alt="생성된 POP" className="w-full h-full object-contain"
                   onError={(e) => { e.preventDefault(); }} />
               </div>
               <div className="flex gap-2">

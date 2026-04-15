@@ -126,6 +126,192 @@ function layoutVertical(items: LayoutItem[], areaY: number, areaH: number, pad: 
   }
 }
 
+/** 케이스별 좌우/상하 배치 (선반/띠지 공통). 영역(x,y,w,h) 안에서 배지/이름/가격을 편의점 POP 스타일로 배치 */
+function drawProductBlock(
+  ctx: Ctx,
+  opts: {
+    x: number; y: number; w: number; h: number;
+    badge?: string;
+    name?: string;
+    price?: number | null;
+    originalPrice?: number | null;
+    bg: string;  // 카드/스트립 배경색
+    badgeBg: string;
+    badgeTc: string;
+  }
+) {
+  const { x, y, w, h, badge, name, price, originalPrice, bg, badgeBg, badgeTc } = opts;
+  const hasBadge = !!(badge && badge !== '없음');
+  const hasName = !!name;
+  const hasPrice = !!(price && price > 0);
+  const count = (hasBadge ? 1 : 0) + (hasName ? 1 : 0) + (hasPrice ? 1 : 0);
+  if (count === 0) return;
+
+  const pad = Math.min(h, w) * 0.05;
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+
+  // 1요소 — 가운데 크게
+  if (count === 1) {
+    if (hasBadge) {
+      const bh = h * 0.55;
+      ctx.font = 'bold ' + Math.round(bh * 0.6) + 'px ' + FB;
+      const btw = ctx.measureText(badge!).width + bh * 0.6;
+      const bw = Math.max(bh * 1.5, Math.min(w * 0.7, btw));
+      drawBadge(ctx, badge!, cx - bw / 2, cy - bh / 2, bw, bh, badgeBg, badgeTc);
+    } else if (hasName) {
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#FFFFFF';
+      fitFontSize(ctx, name!, w * 0.85, Math.round(h * 0.45), FB);
+      ctx.fillText(name!, cx, cy);
+    } else if (hasPrice) {
+      drawPriceInline(ctx, price!, originalPrice, cx, cy, Math.round(h * 0.45), bg, 'center', w - pad * 2);
+    }
+    return;
+  }
+
+  const gap = Math.max(10, w * 0.03);
+
+  // 2요소
+  if (count === 2) {
+    if (hasBadge && (hasName || hasPrice)) {
+      // 배지 좌측 작게 + 이름/가격 나머지 공간 가운데 크게
+      const badgeW = Math.min(w * 0.22, h * 1.3);
+      const bh = Math.min(h * 0.55, badgeW * 0.65);
+      ctx.font = 'bold ' + Math.round(bh * 0.6) + 'px ' + FB;
+      const btw = ctx.measureText(badge!).width + bh * 0.5;
+      const bw = Math.max(bh * 1.3, Math.min(badgeW, btw));
+      drawBadge(ctx, badge!, x + pad, cy - bh / 2, bw, bh, badgeBg, badgeTc);
+
+      // 나머지 영역 가운데에 이름/가격
+      const restX = x + pad + bw + gap;
+      const restRight = x + w - pad;
+      const restW = restRight - restX;
+      const restCx = restX + restW / 2;
+      if (hasName) {
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#FFFFFF';
+        fitFontSize(ctx, name!, restW * 0.95, Math.round(h * 0.5), FB);
+        ctx.fillText(name!, restCx, cy);
+      } else if (hasPrice) {
+        drawPriceInline(ctx, price!, originalPrice, restCx, cy, Math.round(h * 0.5), bg, 'center', restW * 0.95);
+      }
+    } else if (hasName && hasPrice) {
+      // 이름 좌, 가격 우 (반반)
+      const halfW = (w - pad * 2 - gap) / 2;
+      const leftCx = x + pad + halfW / 2;
+      const rightCx = x + pad + halfW + gap + halfW / 2;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#FFFFFF';
+      fitFontSize(ctx, name!, halfW * 0.95, Math.round(h * 0.45), FB);
+      ctx.fillText(name!, leftCx, cy);
+      drawPriceInline(ctx, price!, originalPrice, rightCx, cy, Math.round(h * 0.45), bg, 'center', halfW * 0.95);
+    }
+    return;
+  }
+
+  // 3요소
+  const isWide = w / h >= 2; // 띠지: 가로 비율 높음 → 3열 가로 분할
+
+  if (isWide) {
+    // 띠지 스타일: [배지 좌] | [이름 중] | [가격 우] 한 줄
+    const thirdW = (w - pad * 2 - gap * 2) / 3;
+    const badgeCx = x + pad + thirdW / 2;
+    const nameCx = x + pad + thirdW + gap + thirdW / 2;
+    const priceCx = x + pad + thirdW * 2 + gap * 2 + thirdW / 2;
+
+    const bh = h * 0.55;
+    ctx.font = 'bold ' + Math.round(bh * 0.6) + 'px ' + FB;
+    const btw = ctx.measureText(badge!).width + bh * 0.5;
+    const bw = Math.max(bh * 1.3, Math.min(thirdW * 0.9, btw));
+    drawBadge(ctx, badge!, badgeCx - bw / 2, cy - bh / 2, bw, bh, badgeBg, badgeTc);
+
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#FFFFFF';
+    fitFontSize(ctx, name!, thirdW * 0.95, Math.round(h * 0.35), FB);
+    ctx.fillText(name!, nameCx, cy);
+
+    drawPriceInline(ctx, price!, originalPrice, priceCx, cy, Math.round(h * 0.35), bg, 'center', thirdW * 0.95);
+    return;
+  }
+
+  // 선반 스타일: 상단(배지 좌 + 이름 우) / 하단(가격 강조)
+  const topH = h * 0.4;
+  const botH = h * 0.5;
+  const topCy = y + pad + topH / 2;
+  const botCy = y + h - pad - botH / 2;
+
+  const bh = topH * 0.75;
+  ctx.font = 'bold ' + Math.round(bh * 0.6) + 'px ' + FB;
+  const btw = ctx.measureText(badge!).width + bh * 0.5;
+  const bw = Math.max(bh * 1.3, Math.min(w * 0.3, btw));
+  drawBadge(ctx, badge!, x + pad, topCy - bh / 2, bw, bh, badgeBg, badgeTc);
+
+  const nameX = x + pad + bw + gap;
+  const nameRight = x + w - pad;
+  const nameW = nameRight - nameX;
+  if (nameW > 20) {
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#FFFFFF';
+    fitFontSize(ctx, name!, nameW * 0.95, Math.round(topH * 0.8), FB);
+    ctx.fillText(name!, nameX + nameW / 2, topCy);
+  }
+
+  drawPriceInline(ctx, price!, originalPrice, cx, botCy, Math.round(botH * 0.6), bg, 'center', w - pad * 2);
+}
+
+/** 가격 인라인 그리기 (정가 취소선 → 할인가). cx, cy 가운데 정렬. maxW 초과 시 자동 축소. 반환: 그려진 전체 너비 */
+function drawPriceInline(ctx: Ctx, price: number, originalPrice: number | null | undefined, cx: number, cy: number, priceFs: number, bg: string, align: 'left' | 'center' | 'right' = 'center', maxW = Infinity): number {
+  const hasOrig = originalPrice && originalPrice > price;
+  const priceStr = price.toLocaleString('ko-KR') + '원';
+  const isBgLight = isLight(bg);
+
+  // maxW 체크: 전체 너비가 maxW 초과하면 priceFs 축소
+  const computeTotalW = (fs: number) => {
+    if (hasOrig) {
+      const ofs = Math.round(fs * 0.55);
+      const origStr = originalPrice!.toLocaleString('ko-KR') + '원';
+      const gap = ofs * 0.8;
+      ctx.font = 'bold ' + ofs + 'px ' + FP;
+      const ow = ctx.measureText(origStr).width;
+      ctx.font = 'bold ' + fs + 'px ' + FP;
+      const pw = ctx.measureText(priceStr).width;
+      return ow + gap + pw;
+    }
+    ctx.font = 'bold ' + fs + 'px ' + FP;
+    return ctx.measureText(priceStr).width;
+  };
+  while (computeTotalW(priceFs) > maxW && priceFs > 12) priceFs -= 2;
+
+  if (hasOrig) {
+    const origFs = Math.round(priceFs * 0.55);
+    const origStr = originalPrice!.toLocaleString('ko-KR') + '원';
+    const gap = origFs * 0.8;
+    ctx.font = 'bold ' + origFs + 'px ' + FP;
+    const origW = ctx.measureText(origStr).width;
+    ctx.font = 'bold ' + priceFs + 'px ' + FP;
+    const priceW = ctx.measureText(priceStr).width;
+    const totalW = origW + gap + priceW;
+    let curX = align === 'center' ? cx - totalW / 2 : align === 'right' ? cx - totalW : cx;
+    // 정가 (취소선)
+    ctx.fillStyle = isBgLight ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.8)';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.font = 'bold ' + origFs + 'px ' + FP;
+    ctx.fillText(origStr, curX, cy);
+    ctx.strokeStyle = isBgLight ? '#B91C1C' : '#FF5050';
+    ctx.lineWidth = Math.max(2, Math.round(origFs * 0.1));
+    ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(curX - 2, cy); ctx.lineTo(curX + origW + 2, cy); ctx.stroke();
+    curX += origW + gap;
+    // 할인가
+    ctx.fillStyle = '#FFD700';
+    ctx.font = 'bold ' + priceFs + 'px ' + FP;
+    ctx.fillText(priceStr, curX, cy);
+    return totalW;
+  } else {
+    ctx.fillStyle = '#FFD700';
+    ctx.textAlign = align; ctx.textBaseline = 'middle';
+    ctx.font = 'bold ' + priceFs + 'px ' + FP;
+    ctx.fillText(priceStr, cx, cy);
+    return ctx.measureText(priceStr).width;
+  }
+}
+
 /** 배지 그리기 — 줄바꿈 지원, 텍스트에 맞게 너비 자동 조절, 폰트 축소. w는 최대 너비. */
 function drawBadge(ctx: Ctx, text: string, x: number, y: number, w: number, h: number, bg: string, tc: string) {
   const lines = text.split('\n').filter(l => l.trim());
@@ -259,14 +445,31 @@ export async function renderShelfSheet(
 
   ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, W, H);
 
+  // 그룹핑: N개 상품을 총 셀에 균등 배분 (연속된 칸에 같은 상품)
+  const totalCells = cols * rows;
+  const validProducts = products.filter(p => p.name || p.price);
+  const prodCount = Math.max(validProducts.length, 1);
+  const baseCells = Math.floor(totalCells / prodCount);
+  const extra = totalCells - baseCells * prodCount;
+  // 앞쪽 상품일수록 1칸씩 더 (baseCells+1), 나머지는 baseCells
+  const productIndexForCell: number[] = [];
+  for (let pi = 0; pi < prodCount; pi++) {
+    const cnt = baseCells + (pi < extra ? 1 : 0);
+    for (let c = 0; c < cnt; c++) productIndexForCell.push(pi);
+  }
+
+  // 문구만 있고 상품/사진 없으면: 컬러 배경은 유지 + 배지 흰 박스 없이 텍스트만
+  const textOnlyMode = hasBadge && validProducts.length === 0 && !hasPhotos;
+
   for (let i = 0; i < cols * rows; i++) {
-    const p = products.length > 0 ? products[i % products.length] : { name: '', price: null };
-    const photo = productImages && productImages[i % Math.max(productImages.length, 1)];
+    const pIdx = productIndexForCell[i] ?? 0;
+    const p = validProducts.length > 0 ? validProducts[pIdx] : { name: '', price: null };
+    const photo = productImages && productImages[pIdx];
     const col = i % cols, row = Math.floor(i / cols);
     const x = col * cellW, y = row * cellH;
     const pad = 3;
 
-    // 카드 배경
+    // 카드 배경 (textOnlyMode도 컬러 배경 유지)
     let cardBg: string;
     if (bgColor) { cardBg = bgColor; }
     else if (hasBadge) { cardBg = i % 2 === 0 ? bc.bg : bc.bgAlt; }
@@ -276,6 +479,28 @@ export async function renderShelfSheet(
     const tc = textColor(cardBg), pc = priceColor(cardBg);
 
     const hasName = !!p.name, hasPrice = !!(p.price && p.price > 0);
+
+    // 텍스트 전용 모드: 흰 박스 없이 텍스트만 크게
+    if (textOnlyMode) {
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = isLight(cardBg) ? '#1F2937' : '#FFFFFF';
+      const lines = badgeType!.split('\n').filter(l => l.trim());
+      const lineCount = Math.max(lines.length, 1);
+      const baseFs = lineCount === 1 ? cellH * 0.55 : lineCount === 2 ? cellH * 0.35 : cellH * 0.24;
+      let fs = baseFs;
+      ctx.font = 'bold ' + Math.round(fs) + 'px ' + FB;
+      const longestLine = lines.reduce((a, b) => a.length > b.length ? a : b, '');
+      while (ctx.measureText(longestLine).width > (cellW - pad * 2) * 0.85 && fs > 16) {
+        fs -= 2; ctx.font = 'bold ' + Math.round(fs) + 'px ' + FB;
+      }
+      const lineH = fs * 1.2;
+      const startY = y + cellH / 2 - (lineCount * lineH) / 2 + lineH / 2;
+      for (let li = 0; li < lines.length; li++) {
+        ctx.fillText(lines[li], x + cellW / 2, startY + li * lineH);
+      }
+      continue;
+    }
+
     // 배지: 카드 배경색을 글자색으로 가져감
     const badgeBg = isLight(cardBg) ? '#1F2937' : '#FFFFFF';
     const badgeTc = cardBg;
@@ -294,60 +519,23 @@ export async function renderShelfSheet(
       const tH = cellH - photoAreaH - pad;
       const cx = x + cellW / 2;
 
-      // 가중치 기반 배치 (배지2 이름3 정가1 가격4)
-      const items: LayoutItem[] = [];
-      if (hasBadge) items.push({ weight: 2, draw: (cy, sh) => {
-        const bh = sh * 0.65;
-        ctx.font = 'bold ' + Math.round(bh * 0.6) + 'px ' + FB;
-        const btw = ctx.measureText(badgeType!).width + bh * 0.6;
-        const bW = Math.max(bh * 1.5, btw);
-        drawBadge(ctx, badgeType!, cx - bW / 2, cy - bh / 2, bW, bh, badgeBg, badgeTc);
-      }});
-      if (hasName) items.push({ weight: 3, draw: (cy, sh) => {
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#FFFFFF';
-        fitFontSize(ctx, p.name, cellW * 0.85, Math.round(sh * 0.7), FB);
-        ctx.fillText(p.name, cx, cy);
-      }});
-      if (p.originalPrice && p.originalPrice > (p.price || 0)) items.push({ weight: 1, draw: (cy, sh) => {
-        drawOriginalPrice(ctx, p.originalPrice!, cx, cy, Math.round(sh * 0.6), cardBg);
-      }});
-      if (hasPrice) items.push({ weight: 4, draw: (cy, sh) => {
-        ctx.fillStyle = '#FFD700'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.font = 'bold ' + Math.round(sh * 0.65) + 'px ' + FP;
-        ctx.fillText(p.price!.toLocaleString('ko-KR') + '원', cx, cy);
-      }});
-      layoutVertical(items, tY, tH, 6);
-      // 사진만 있고 텍스트 없으면 → 사진을 더 크게 (상단 사진 영역이 이미 그려짐)
+      // 사진 아래 텍스트 영역에 편의점 POP 스타일 배치
+      drawProductBlock(ctx, {
+        x: x + pad, y: tY, w: cellW - pad * 2, h: tH - pad,
+        badge: badgeType, name: p.name, price: p.price, originalPrice: p.originalPrice,
+        bg: cardBg, badgeBg, badgeTc,
+      });
       continue;
     }
 
     const cardCx = x + cellW / 2;
 
-    // 가중치 기반 배치 (사진 없는 경우)
-    {
-      const items: LayoutItem[] = [];
-      if (hasBadge) items.push({ weight: 2, draw: (cy, sh) => {
-        const bh = sh * 0.6;
-        ctx.font = 'bold ' + Math.round(bh * 0.6) + 'px ' + FB;
-        const btw = ctx.measureText(badgeType!).width + bh * 0.6;
-        const bW = Math.max(bh * 1.5, Math.min(cellW * 0.6, btw));
-        drawBadge(ctx, badgeType!, cardCx - bW / 2, cy - bh / 2, bW, bh, badgeBg, badgeTc);
-      }});
-      if (hasName) items.push({ weight: 3, draw: (cy, sh) => {
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#FFFFFF';
-        fitFontSize(ctx, p.name, cellW * 0.85, Math.round(sh * 0.7), FB);
-        ctx.fillText(p.name, cardCx, cy);
-      }});
-      if (p.originalPrice && p.originalPrice > (p.price || 0)) items.push({ weight: 1, draw: (cy, sh) => {
-        drawOriginalPrice(ctx, p.originalPrice!, cardCx, cy, Math.round(sh * 0.6), cardBg);
-      }});
-      if (hasPrice) items.push({ weight: 4, draw: (cy, sh) => {
-        ctx.fillStyle = '#FFD700'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.font = 'bold ' + Math.round(sh * 0.65) + 'px ' + FP;
-        ctx.fillText(p.price!.toLocaleString('ko-KR') + '원', cardCx, cy);
-      }});
-      layoutVertical(items, y + pad, cellH - pad * 2, 10);
-    }
+    // 사진 없을 때 — 셀 전체에 편의점 POP 스타일 배치
+    drawProductBlock(ctx, {
+      x: x + pad, y: y + pad, w: cellW - pad * 2, h: cellH - pad * 2,
+      badge: badgeType, name: p.name, price: p.price, originalPrice: p.originalPrice,
+      bg: cardBg, badgeBg, badgeTc,
+    });
   }
   // 절취선
   ctx.setLineDash([8, 4]); ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 1.5;
@@ -378,9 +566,24 @@ export async function renderBannerSheet(
 
   ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, W, H);
 
+  // 그룹핑: 띠지는 한 줄 = 한 상품
+  const validProductsB = products.filter(p => p.name || p.price);
+  const bCount = Math.max(validProductsB.length, 1);
+  const baseRows = Math.floor(rows / bCount);
+  const extraRows = rows - baseRows * bCount;
+  const prodIdxForRow: number[] = [];
+  for (let pi = 0; pi < bCount; pi++) {
+    const cnt = baseRows + (pi < extraRows ? 1 : 0);
+    for (let c = 0; c < cnt; c++) prodIdxForRow.push(pi);
+  }
+
+  // 문구만 + 상품/사진 없으면: 컬러 배경 유지 + 배지 흰 박스 없이 텍스트만
+  const bTextOnlyMode = hasBadge && validProductsB.length === 0 && !(productImages && productImages.some(p => p));
+
   for (let r = 0; r < rows; r++) {
-    const p = products.length > 0 ? products[r % products.length] : { name: '', price: null };
-    const photo = productImages && productImages[r % Math.max(productImages.length, 1)];
+    const pIdx = prodIdxForRow[r] ?? 0;
+    const p = validProductsB.length > 0 ? validProductsB[pIdx] : { name: '', price: null };
+    const photo = productImages && productImages[pIdx];
     const y = r * stripH;
 
     let stripBg: string;
@@ -392,6 +595,27 @@ export async function renderBannerSheet(
     const stc = textColor(stripBg), spc = priceColor(stripBg);
 
     const hasName = !!p.name, hasPrice = !!(p.price && p.price > 0);
+
+    // 텍스트 전용 모드: 흰 박스 없이 텍스트만 크게
+    if (bTextOnlyMode) {
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = isLight(stripBg) ? '#1F2937' : '#FFFFFF';
+      const lines = badgeType!.split('\n').filter(l => l.trim());
+      const lineCount = Math.max(lines.length, 1);
+      const baseFs = lineCount === 1 ? stripH * 0.65 : lineCount === 2 ? stripH * 0.42 : stripH * 0.3;
+      let fs = baseFs;
+      ctx.font = 'bold ' + Math.round(fs) + 'px ' + FB;
+      const longestLine = lines.reduce((a, b) => a.length > b.length ? a : b, '');
+      while (ctx.measureText(longestLine).width > W * 0.85 && fs > 16) {
+        fs -= 2; ctx.font = 'bold ' + Math.round(fs) + 'px ' + FB;
+      }
+      const lineH = fs * 1.2;
+      const startY = y + stripH / 2 - (lineCount * lineH) / 2 + lineH / 2;
+      for (let li = 0; li < lines.length; li++) {
+        ctx.fillText(lines[li], W / 2, startY + li * lineH);
+      }
+      continue;
+    }
 
     // ─── 사진 있는 경우: 좌측 사진 + 우측 텍스트 ───
     if (photo) {
@@ -415,61 +639,23 @@ export async function renderBannerSheet(
         drawBadge(ctx, badgeType!, tX, by - ibh / 2, ibw, ibh, badgeBgP, badgeTcP);
         return tX + ibw + 10; // 배지 뒤 텍스트 시작 X
       };
-      // 띠지 사진 있을 때 — 우측 영역 가중치 배치
-      {
-        const items: LayoutItem[] = [];
-        if (hasBadge) items.push({ weight: 2, draw: (cy, sh) => {
-          const bh2 = sh * 0.6;
-          ctx.font = 'bold ' + Math.round(bh2 * 0.6) + 'px ' + FB;
-          const btw2 = ctx.measureText(badgeType!).width + bh2 * 0.6;
-          const bw2 = Math.max(bh2 * 1.5, btw2);
-          drawBadge(ctx, badgeType!, tCx - bw2 / 2, cy - bh2 / 2, bw2, bh2, badgeBgP, badgeTcP);
-        }});
-        if (hasName) items.push({ weight: 3, draw: (cy, sh) => {
-          ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#FFFFFF';
-          fitFontSize(ctx, p.name, tW * 0.9, Math.round(sh * 0.7), FB);
-          ctx.fillText(p.name, tCx, cy);
-        }});
-        if (p.originalPrice && p.originalPrice > (p.price || 0)) items.push({ weight: 1, draw: (cy, sh) => {
-          drawOriginalPrice(ctx, p.originalPrice!, tCx, cy, Math.round(sh * 0.6), stripBg);
-        }});
-        if (hasPrice) items.push({ weight: 4, draw: (cy, sh) => {
-          ctx.fillStyle = '#FFD700'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.font = 'bold ' + Math.round(sh * 0.65) + 'px ' + FP;
-          ctx.fillText(p.price!.toLocaleString('ko-KR') + '원', tCx, cy);
-        }});
-        layoutVertical(items, y, stripH, 8);
-      }
+      // 띠지 사진 있을 때 — 우측 영역에 POP 스타일 배치
+      drawProductBlock(ctx, {
+        x: tX, y: y, w: tW, h: stripH,
+        badge: badgeType, name: p.name, price: p.price, originalPrice: p.originalPrice,
+        bg: stripBg, badgeBg: badgeBgP, badgeTc: badgeTcP,
+      });
       continue;
 
     }
-    // 띠지 사진 없을 때 — 전체 너비 가중치 배치
+    // 띠지 사진 없을 때 — 전체 너비에 POP 스타일 배치
     const badgeBg2 = isLight(stripBg) ? '#1F2937' : '#FFFFFF';
     const badgeTc2 = stripBg;
-    {
-      const items: LayoutItem[] = [];
-      if (hasBadge) items.push({ weight: 2, draw: (cy, sh) => {
-        const bh2 = sh * 0.6;
-        ctx.font = 'bold ' + Math.round(bh2 * 0.6) + 'px ' + FB;
-        const btw2 = ctx.measureText(badgeType!).width + bh2 * 0.6;
-        const bw2 = Math.max(bh2 * 1.5, btw2);
-        drawBadge(ctx, badgeType!, W / 2 - bw2 / 2, cy - bh2 / 2, bw2, bh2, badgeBg2, badgeTc2);
-      }});
-      if (hasName) items.push({ weight: 3, draw: (cy, sh) => {
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#FFFFFF';
-        fitFontSize(ctx, p.name, W * 0.85, Math.round(sh * 0.7), FB);
-        ctx.fillText(p.name, W / 2, cy);
-      }});
-      if (p.originalPrice && p.originalPrice > (p.price || 0)) items.push({ weight: 1, draw: (cy, sh) => {
-        drawOriginalPrice(ctx, p.originalPrice!, W / 2, cy, Math.round(sh * 0.6), stripBg);
-      }});
-      if (hasPrice) items.push({ weight: 4, draw: (cy, sh) => {
-        ctx.fillStyle = '#FFD700'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.font = 'bold ' + Math.round(sh * 0.65) + 'px ' + FP;
-        ctx.fillText(p.price!.toLocaleString('ko-KR') + '원', W / 2, cy);
-      }});
-      layoutVertical(items, y, stripH, 10);
-    }
+    drawProductBlock(ctx, {
+      x: 0, y: y, w: W, h: stripH,
+      badge: badgeType, name: p.name, price: p.price, originalPrice: p.originalPrice,
+      bg: stripBg, badgeBg: badgeBg2, badgeTc: badgeTc2,
+    });
   }
 
 

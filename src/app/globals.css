@@ -38,10 +38,13 @@
 
 html {
   scrollbar-gutter: stable;
+  overflow-y: scroll;
 }
 
 body {
   overflow-x: hidden;
+  overflow-y: hidden;
+  height: 100vh;
 }
 
 @theme inline {
@@ -114,7 +117,6 @@ body {
   margin: 0 auto;
   background: #ffffff;
   height: 100vh;
-  height: 100dvh;
   position: relative;
   display: flex;
   flex-direction: column;
