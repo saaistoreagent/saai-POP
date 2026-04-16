@@ -164,7 +164,7 @@ function drawProductBlock(
       fitFontSize(ctx, name!, w * 0.85, Math.round(h * 0.45), FB);
       ctx.fillText(name!, cx, cy);
     } else if (hasPrice) {
-      drawPriceInline(ctx, price!, originalPrice, cx, cy, Math.round(h * 0.45), bg, 'center', w - pad * 2);
+      drawPriceStacked(ctx, price!, originalPrice, cx, cy, h, w - pad * 2, bg);
     }
     return;
   }
@@ -253,6 +253,51 @@ function drawProductBlock(
   }
 
   drawPriceInline(ctx, price!, originalPrice, cx, botCy, Math.round(botH * 0.6), bg, 'center', w - pad * 2);
+}
+
+/** 가격 단독 배치: 정가(작게, 위 취소선) → 할인가(크게, 아래). 정가 없으면 할인가만 크게. */
+function drawPriceStacked(
+  ctx: Ctx, price: number, originalPrice: number | null | undefined,
+  cx: number, cy: number, totalH: number, maxW: number, bg: string,
+) {
+  const hasOrig = originalPrice && originalPrice > price;
+  const priceStr = price.toLocaleString('ko-KR') + '원';
+
+  if (!hasOrig) {
+    let priceFs = Math.round(totalH * 0.6);
+    ctx.font = 'bold ' + priceFs + 'px ' + FP;
+    while (ctx.measureText(priceStr).width > maxW && priceFs > 14) {
+      priceFs -= 2; ctx.font = 'bold ' + priceFs + 'px ' + FP;
+    }
+    ctx.fillStyle = '#FFD700';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(priceStr, cx, cy);
+    return;
+  }
+
+  let priceFs = Math.round(totalH * 0.55);
+  let origFs = Math.round(priceFs * 0.42);
+  const fit = () => {
+    ctx.font = 'bold ' + priceFs + 'px ' + FP;
+    const pw = ctx.measureText(priceStr).width;
+    ctx.font = 'bold ' + origFs + 'px ' + FP;
+    const ow = ctx.measureText(originalPrice!.toLocaleString('ko-KR') + '원').width;
+    return Math.max(pw, ow);
+  };
+  while (fit() > maxW && priceFs > 16) {
+    priceFs -= 2; origFs = Math.round(priceFs * 0.42);
+  }
+  const gap = Math.round(priceFs * 0.08);
+  const stackH = origFs + gap + priceFs;
+  const origY = cy - stackH / 2 + origFs / 2;
+  const priceY = cy + stackH / 2 - priceFs / 2;
+
+  drawOriginalPrice(ctx, originalPrice!, cx, origY, origFs, bg);
+
+  ctx.fillStyle = '#FFD700';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = 'bold ' + priceFs + 'px ' + FP;
+  ctx.fillText(priceStr, cx, priceY);
 }
 
 /** 가격 인라인 그리기 (정가 취소선 → 할인가). cx, cy 가운데 정렬. maxW 초과 시 자동 축소. 반환: 그려진 전체 너비 */

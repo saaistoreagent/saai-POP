@@ -80,7 +80,7 @@ function saveImageToPublic(base64: string): string {
 }
 
 export async function POST(request: NextRequest) {
-  const { productName, price, originalPrice, direction, category, productImageUrl, productImages, badgeType: inputBadgeType, eventPeriod: inputEventPeriod, additionalProducts, orientation, premium: isPremium, bgColor: inputBgColor, catchphraseInput, noSearch } = await request.json();
+  const { productName, price, originalPrice, direction, category, productImageUrl, productImages, badgeType: inputBadgeType, eventPeriod: inputEventPeriod, additionalProducts, orientation, premium: isPremium, bgColor: inputBgColor, catchphraseInput, noSearch, skipBgRemoval } = await request.json();
 
   if (!productName && category !== 'badge' && category !== 'price' && category !== 'strip') {
     return Response.json({ error: '상품명을 입력해주세요' }, { status: 400 });
@@ -298,8 +298,7 @@ JSON만:
             }
           } catch {}
         }
-        // 배경 제거 시도
-        if (dataUrl) {
+        if (dataUrl && !skipBgRemoval) {
           try {
             const bgRes = await fetch(`${request.nextUrl.origin}/api/remove-bg`, {
               method: 'POST',
