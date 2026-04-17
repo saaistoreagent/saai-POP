@@ -174,25 +174,47 @@ function drawProductBlock(
   // 2요소
   if (count === 2) {
     if (hasBadge && (hasName || hasPrice)) {
-      // 배지 좌측 작게 + 이름/가격 나머지 공간 가운데 크게
-      const badgeW = Math.min(w * 0.22, h * 1.3);
-      const bh = Math.min(h * 0.55, badgeW * 0.65);
-      ctx.font = 'bold ' + Math.round(bh * 0.6) + 'px ' + FB;
-      const btw = ctx.measureText(badge!).width + bh * 0.5;
-      const bw = Math.max(bh * 1.3, Math.min(badgeW, btw));
-      drawBadge(ctx, badge!, x + pad, cy - bh / 2, bw, bh, badgeBg, badgeTc);
+      const isWide2 = w / h >= 2;
+      if (isWide2) {
+        // 띠지 스타일 — 배지 좌측 작게 + 이름/가격 나머지 공간 가운데 크게
+        const badgeW = Math.min(w * 0.22, h * 1.3);
+        const bh = Math.min(h * 0.55, badgeW * 0.65);
+        ctx.font = 'bold ' + Math.round(bh * 0.6) + 'px ' + FB;
+        const btw = ctx.measureText(badge!).width + bh * 0.5;
+        const bw = Math.max(bh * 1.3, Math.min(badgeW, btw));
+        drawBadge(ctx, badge!, x + pad, cy - bh / 2, bw, bh, badgeBg, badgeTc);
 
-      // 나머지 영역 가운데에 이름/가격
-      const restX = x + pad + bw + gap;
-      const restRight = x + w - pad;
-      const restW = restRight - restX;
-      const restCx = restX + restW / 2;
-      if (hasName) {
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#FFFFFF';
-        fitFontSize(ctx, name!, restW * 0.95, Math.round(h * 0.5), FB);
-        ctx.fillText(name!, restCx, cy);
-      } else if (hasPrice) {
-        drawPriceInline(ctx, price!, originalPrice, restCx, cy, Math.round(h * 0.5), bg, 'center', restW * 0.95);
+        const restX = x + pad + bw + gap;
+        const restRight = x + w - pad;
+        const restW = restRight - restX;
+        const restCx = restX + restW / 2;
+        if (hasName) {
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#FFFFFF';
+          fitFontSize(ctx, name!, restW * 0.95, Math.round(h * 0.5), FB);
+          ctx.fillText(name!, restCx, cy);
+        } else if (hasPrice) {
+          drawPriceInline(ctx, price!, originalPrice, restCx, cy, Math.round(h * 0.5), bg, 'center', restW * 0.95);
+        }
+      } else {
+        // 선반 스타일 — 배지 위(적당) + 이름/가격 아래(크게)
+        const topH = h * 0.42;
+        const botH = h * 0.48;
+        const topCy = y + pad + topH / 2;
+        const botCy = y + h - pad - botH / 2;
+
+        const bh = topH * 0.75;
+        ctx.font = 'bold ' + Math.round(bh * 0.6) + 'px ' + FB;
+        const btw = ctx.measureText(badge!).width + bh * 0.5;
+        const bw = Math.max(bh * 1.3, Math.min(w * 0.7, btw));
+        drawBadge(ctx, badge!, cx - bw / 2, topCy - bh / 2, bw, bh, badgeBg, badgeTc);
+
+        if (hasName) {
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#FFFFFF';
+          fitFontSize(ctx, name!, (w - pad * 2) * 0.95, Math.round(botH * 0.85), FB);
+          ctx.fillText(name!, cx, botCy);
+        } else if (hasPrice) {
+          drawPriceInline(ctx, price!, originalPrice, cx, botCy, Math.round(botH * 0.85), bg, 'center', (w - pad * 2) * 0.95);
+        }
       }
     } else if (hasName && hasPrice) {
       // 이름 좌, 가격 우 (반반)
@@ -550,23 +572,32 @@ export async function renderShelfSheet(
     const badgeBg = isLight(cardBg) ? '#1F2937' : '#FFFFFF';
     const badgeTc = cardBg;
 
-    // ─── 사진 있는 경우: 상단 사진 + 하단 텍스트 ───
+    // ─── 사진 있는 경우 ───
     if (photo) {
       const photoMargin = 6;
       const hasAnyText = hasBadge || hasName || hasPrice;
-      const photoAreaH = hasAnyText ? cellH * 0.58 : cellH - pad * 2;
-      const pX = x + pad + photoMargin, pY = y + pad + photoMargin;
-      const pW = cellW - pad * 2 - photoMargin * 2, pH = photoAreaH - photoMargin * 2;
+
+      // 텍스트 요소 없으면 사진만 가운데 크게
+      if (!hasAnyText) {
+        const pX = x + pad + photoMargin, pY = y + pad + photoMargin;
+        const pW = cellW - pad * 2 - photoMargin * 2, pH = cellH - pad * 2 - photoMargin * 2;
+        await drawProductPhoto(ctx, photo, pX, pY, pW, pH);
+        continue;
+      }
+
+      // 텍스트 요소 있을 때: 좌측 사진 + 우측 텍스트 (띠지 스타일)
+      const photoAreaW = Math.min(cellW * 0.42, (cellH - pad * 2) * 0.95);
+      const pX = x + pad + photoMargin;
+      const pY = y + pad + photoMargin;
+      const pW = photoAreaW - photoMargin * 2;
+      const pH = cellH - pad * 2 - photoMargin * 2;
       await drawProductPhoto(ctx, photo, pX, pY, pW, pH);
 
-      const textPad = 8;
-      const tY = y + photoAreaH;
-      const tH = cellH - photoAreaH - pad;
-      const cx = x + cellW / 2;
-
-      // 사진 아래 텍스트 영역에 편의점 POP 스타일 배치
+      // 우측 텍스트 영역에 POP 스타일 배치
+      const tX = x + pad + photoAreaW;
+      const tW = cellW - pad - photoAreaW - pad;
       drawProductBlock(ctx, {
-        x: x + pad, y: tY, w: cellW - pad * 2, h: tH - pad,
+        x: tX, y: y + pad, w: tW, h: cellH - pad * 2,
         badge: badgeType, name: p.name, price: p.price, originalPrice: p.originalPrice,
         bg: cardBg, badgeBg, badgeTc,
       });

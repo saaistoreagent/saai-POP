@@ -9,6 +9,7 @@ interface ProductInfo {
   name: string;
   originalPrice?: number | null;
   price?: number | null;
+  badge?: string | null;
 }
 
 interface GeminiPOPOptions {
@@ -44,11 +45,16 @@ function buildPrompt(options: GeminiPOPOptions): string {
       // ─── 한글 텍스트를 Gemini가 직접 박는 모드 ───
       if (embedKoreanText) {
         const validProds = products.filter(p => p.name);
+        const prodBadges = validProds.filter(p => p.badge && p.badge.trim());
 
-        // 포스터는 캐치프레이즈만 박음 — 가격/번들/상품명은 모두 캐치프레이즈 텍스트로 표현
-        const textLine = catchphrase
-          ? `Render this Korean text large, bold, white, on a calm/dark area of the image. You decide the best position, line breaks, and font size for visual balance with the products: "${catchphrase}"`
-          : '(no text — image only)';
+        const mainTextLine = catchphrase
+          ? `Main headline (large, bold, white, on a calm/dark area — top or center): "${catchphrase}"`
+          : '(no headline)';
+        const perProductBadgeLine = prodBadges.length > 0
+          ? `Per-product small highlight badges (render each badge as a small pill/tag near its matching product — bright yellow or red background, dark text, clearly smaller than the main headline):\n${prodBadges.map(p => `  - Next to "${p.name}": "${p.badge}"`).join('\n')}`
+          : '';
+
+        const textLine = [mainTextLine, perProductBadgeLine].filter(Boolean).join('\n');
 
         const productLine = validProds.length === 1
           ? `Show "${main.name}" as the main subject. Position and scale: you decide what looks best for an advertisement — it can be center, bottom, side, on a surface, etc. Just balance with the text area.`

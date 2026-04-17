@@ -80,11 +80,9 @@ function saveImageToPublic(base64: string): string {
 }
 
 export async function POST(request: NextRequest) {
-  const { productName, price, originalPrice, direction, category, productImageUrl, productImages, badgeType: inputBadgeType, eventPeriod: inputEventPeriod, additionalProducts, orientation, premium: isPremium, bgColor: inputBgColor, catchphraseInput, noSearch, skipBgRemoval } = await request.json();
+  const { productName, productBadge, price, originalPrice, direction, category, productImageUrl, productImages, badgeType: inputBadgeType, eventPeriod: inputEventPeriod, additionalProducts, orientation, premium: isPremium, bgColor: inputBgColor, catchphraseInput, noSearch, skipBgRemoval } = await request.json();
 
-  if (!productName && category !== 'badge' && category !== 'price' && category !== 'strip') {
-    return Response.json({ error: '상품명을 입력해주세요' }, { status: 400 });
-  }
+  // 상품명 필수 체크 제거 — 포스터도 문구만으로 생성 가능
 
   const categoryHint: Record<string, string> = {
     promo: '대형 특가 행사 홍보물 (A4 풀사이즈 포스터)',
@@ -178,7 +176,7 @@ JSON만:
 
       // 상품 목록 구성 (검색 전에 먼저)
       const allProducts = [
-        { name: productName, originalPrice: originalPrice || null, price: price || null },
+        { name: productName, badge: productBadge || null, originalPrice: originalPrice || null, price: price || null },
         ...(additionalProducts || []),
       ];
 
