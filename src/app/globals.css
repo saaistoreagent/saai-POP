@@ -56,6 +56,37 @@ body {
   --font-pop: 'Jalnan2', 'GmarketSans', 'Black Han Sans', sans-serif;
   --font-badge: 'Cafe24Supermagic', 'BMDoHyeon', 'Jua', sans-serif;
   --font-price: 'GmarketSans', 'Black Han Sans', sans-serif;
+
+  /* ── sa-b2c color tokens ── */
+  --color-primary-100: #DBEAFE;
+  --color-primary-200: #BFDBFE;
+  --color-primary-300: #93C5FD;
+  --color-primary-400: #60A5FA;
+  --color-primary-500: #3B82F6;
+  --color-primary-600: #2563EB;
+  --color-primary-700: #1D4ED8;
+  --color-secondary-500: #082253;
+  --color-tertiary-500: #10CFC9;
+  --color-success-100: #E6F9F3;
+  --color-success-500: #00C781;
+  --color-success-600: #00B374;
+  --color-warning-100: #FFF8E6;
+  --color-warning-300: #E6A832;
+  --color-warning-500: #FFBB38;
+  --color-danger-100: #FFE8E8;
+  --color-danger-500: #FF4040;
+  --color-danger-700: #CC3333;
+  --color-grey-100: #FAFAFA;
+  --color-grey-200: #E1E1E1;
+  --color-grey-300: #C8C8C8;
+  --color-grey-400: #AFAFAF;
+  --color-grey-500: #969696;
+  --color-grey-600: #4B4B4B;
+  --color-grey-700: #323232;
+  --color-grey-800: #191919;
+  --color-grey-900: #000000;
+  --color-bg-primary: #F5F8FA;
+  --color-bg-secondary: #EDF1F8;
 }
 
 body {
@@ -152,3 +183,23 @@ input[type=number]::-webkit-outer-spin-button {
   margin: 0;
 }
 input[type=number] { -moz-appearance: textfield; }
+
+/* 결과 이미지 보호 */
+.result-image-wrapper img {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  pointer-events: auto;
+  -webkit-user-drag: none;
+}
+
+/* 워터마크 오버레이 */
+.pop-watermark-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='80'%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle' font-size='22' font-weight='900' font-family='sans-serif' fill='rgba(60,60,60,0.7)' transform='rotate(-30 100 40)'%3EPOP%EB%A9%94%EC%9D%B4%EC%BB%A4%3C/text%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 90px 40px;
+}

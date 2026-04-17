@@ -15,6 +15,16 @@ app.prepare().then(() => {
     const parsedUrl = parse(req.url, true);
     const { pathname } = parsedUrl;
 
+    // /admin → admin 페이지 서빙
+    if (pathname === '/admin' || pathname === '/admin/') {
+      const adminPath = path.join(process.cwd(), 'public', 'admin', 'index.html');
+      if (fs.existsSync(adminPath)) {
+        res.setHeader('Content-Type', 'text/html');
+        fs.createReadStream(adminPath).pipe(res);
+        return;
+      }
+    }
+
     // 런타임 생성 이미지 직접 서빙
     if (pathname.startsWith('/generated/') || pathname.startsWith('/examples/')) {
       const filePath = path.join(process.cwd(), 'public', pathname);

@@ -2,9 +2,9 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "편의점 POP 자동 생성기",
-  description: "AI로 편의점 POP를 자동 생성하세요. 가격표, 행사 안내, 신상품 홍보, 시즌 POP까지.",
-  appleWebApp: { capable: true, statusBarStyle: "default", title: "POP" },
+  title: "스토어24",
+  description: "편의점 점주를 위한 트렌드 분석 & POP 자동 생성",
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "스토어24" },
 };
 
 export const viewport: Viewport = {
