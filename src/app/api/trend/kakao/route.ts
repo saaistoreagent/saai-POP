@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   const upstream = await fetch(url, {
     method: 'GET',
     headers: {
-      Authorization: `KakaoAK ${process.env.KAKAO_REST_KEY ?? ''}`,
+      Authorization: `KakaoAK ${process.env.KAKAO_REST_KEY || 'dc6e7db37effcd240fb4583f31feca7e'}`,
       'Content-Type': 'application/json',
     },
   });
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
   const upstream = await fetch(url, {
     method: 'POST',
     headers: {
-      Authorization: `KakaoAK ${process.env.KAKAO_REST_KEY ?? ''}`,
+      Authorization: `KakaoAK ${process.env.KAKAO_REST_KEY || 'dc6e7db37effcd240fb4583f31feca7e'}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
