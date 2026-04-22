@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { searchAddress, AddressResult, UserCoords } from '@/lib/trend/kakao-geocode';
+import { searchAddress, AddressResult } from '@/lib/trend/kakao-geocode';
 
 interface Props {
   onSelect: (result: AddressResult) => void;
@@ -28,8 +28,6 @@ export default function AddressInput({ onSelect, onSkip }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<AddressResult | null>(null);
-  const [coords, setCoords] = useState<UserCoords | null>(null);
-  const [locLoading, setLocLoading] = useState(false);
   const debounced = useDebounce(query, 300);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -37,14 +35,14 @@ export default function AddressInput({ onSelect, onSkip }: Props) {
     if (!debounced || selected) return;
     setLoading(true);
     setError(null);
-    searchAddress(debounced, coords ?? undefined)
+    searchAddress(debounced)
       .then((r) => {
         setResults(r);
         if (r.length === 0) setError('검색 결과가 없어요. 다른 키워드를 시도해보세요.');
       })
       .catch(() => setError('주소 검색을 사용할 수 없어요. 잠시 후 다시 시도해주세요.'))
       .finally(() => setLoading(false));
-  }, [debounced, coords]);
+  }, [debounced]);
 
   const handleSelect = (r: AddressResult) => {
     setSelected(r);
@@ -59,61 +57,24 @@ export default function AddressInput({ onSelect, onSkip }: Props) {
     setError(null);
   };
 
-  const handleLocateMe = () => {
-    if (!('geolocation' in navigator)) return;
-    setLocLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setCoords({ lng: pos.coords.longitude, lat: pos.coords.latitude });
-        setLocLoading(false);
-        inputRef.current?.focus();
-      },
-      () => {
-        // 권한 거부·실패 시 조용히 기존 동작 유지
-        setLocLoading(false);
-      },
-      { enableHighAccuracy: false, timeout: 8000, maximumAge: 60_000 },
-    );
-  };
-
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <input
-            ref={inputRef}
-            type="text"
-            value={query}
-            onChange={(e) => handleChange(e.target.value)}
-            placeholder="예: 역삼 GS25, 홍대 CU, 강남역 세븐일레븐"
-            className="w-full px-4 py-3.5 rounded-xl border-2 border-grey-200 text-sm focus:outline-none focus:border-primary-400 bg-white"
-            autoFocus
-          />
-          {loading && (
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-grey-400">
-              검색 중...
-            </span>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={handleLocateMe}
-          disabled={locLoading}
-          className={`flex items-center gap-1 px-3 py-3.5 rounded-xl border-2 text-xs font-semibold whitespace-nowrap transition-all ${
-            coords
-              ? 'border-primary-400 bg-primary-100 text-primary-700'
-              : 'border-grey-200 bg-white text-grey-600 hover:border-primary-200'
-          } disabled:opacity-50`}
-        >
-          📍 {locLoading ? '위치 찾는 중' : coords ? '내 위치 적용됨' : '내 위치'}
-        </button>
+      <div className="relative">
+        <input
+          ref={inputRef}
+          type="text"
+          value={query}
+          onChange={(e) => handleChange(e.target.value)}
+          placeholder="예: 역삼 GS25, 홍대 CU, 강남역 세븐일레븐"
+          className="w-full px-4 py-3.5 rounded-xl border-2 border-grey-200 text-sm focus:outline-none focus:border-primary-400 bg-white"
+          autoFocus
+        />
+        {loading && (
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-grey-400">
+            검색 중...
+          </span>
+        )}
       </div>
-
-      {coords && (
-        <p className="text-xs text-primary-500 font-medium px-1">
-          내 위치 근처 결과를 먼저 보여드려요
-        </p>
-      )}
 
       {/* 에러 */}
       {error && !selected && (
