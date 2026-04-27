@@ -2141,7 +2141,7 @@ export default function PopMakerTab() {
                   <button onClick={() => confirmAndGenerate()}
                     disabled={generating || refining}
                     className="flex-1 py-3 rounded-xl text-[16px] font-bold bg-grey-100 text-grey-700 active:bg-grey-200 disabled:opacity-50">
-                    다시 생성 (약 20원)
+                    다시 생성
                   </button>
                 ) : (
                   <button onClick={() => {
