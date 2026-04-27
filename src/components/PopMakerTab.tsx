@@ -65,9 +65,6 @@ const PreviewBar = memo(function PreviewBar({ popType, orientation, previewImage
           }}>
             <div className="w-5 h-5 border-2 border-grey-200 border-t-primary-500 rounded-full animate-spin" />
           </div>
-          {previewLoading && previewImage && (
-            <div className="absolute top-1.5 right-1.5 w-4 h-4 border-2 border-grey-300 border-t-primary-500 rounded-full animate-spin bg-white/80" />
-          )}
         </div>
       </div>
     </div>
@@ -158,6 +155,18 @@ export default function PopMakerTab() {
   const [popType, setPopType] = useState<POPType>('poster');
   const [wizardStep, setWizardStep] = useState(1);
 
+  // 기본 OpenAI gpt-image-2 low. ?ai=gemini 로 옵트아웃, ?q=medium|high 로 품질 변경
+  function getAIConfig(): { provider: 'gemini' | 'openai'; quality: 'low' | 'medium' | 'high' } {
+    if (typeof window === 'undefined') return { provider: 'openai', quality: 'low' };
+    const params = new URLSearchParams(window.location.search);
+    const ai = params.get('ai');
+    const q = params.get('q');
+    return {
+      provider: ai === 'gemini' ? 'gemini' : 'openai',
+      quality: q === 'medium' ? 'medium' : q === 'high' ? 'high' : 'low',
+    };
+  }
+
   // 폼
   const [products, setProducts] = useState<ProductItem[]>([{ name: '', displayName: '', originalPrice: '', price: '' }]);
   const [badgeType, setBadgeType] = useState<string>('없음');
@@ -190,6 +199,7 @@ export default function PopMakerTab() {
   // 결과
   const [generating, setGenerating] = useState(false);
   const [genProgress, setGenProgress] = useState(0); // 0~100 진행률 시뮬레이션
+  const [genStep, setGenStep] = useState(''); // 단계 라벨
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [resultAspect, setResultAspect] = useState<number>(1); // width/height
   // 실시간 미리보기 (canvas POPs 전용)
@@ -204,6 +214,8 @@ export default function PopMakerTab() {
   const [refineStep1, setRefineStep1] = useState('');
   const [refineStep2, setRefineStep2] = useState('');
   const [pageBlurred, setPageBlurred] = useState(false);
+  // 수정 되돌리기용 — refine 성공할 때마다 이전 이미지를 push
+  const [imageHistory, setImageHistory] = useState<string[]>([]);
 
   // 페이지 포커스 잃으면 결과 이미지 blur (캡처 방지)
   useEffect(() => {
@@ -243,6 +255,7 @@ export default function PopMakerTab() {
           skipBgRemoval: true,
           orientation,
           additionalProducts: [],
+          preview: true,
         }),
       });
       const data = await res.json();
@@ -265,7 +278,7 @@ export default function PopMakerTab() {
   useEffect(() => {
     if (view !== 'form' || popType === 'poster') return;
     if (previewTimer.current) clearTimeout(previewTimer.current);
-    previewTimer.current = setTimeout(() => generatePreview(), 400);
+    previewTimer.current = setTimeout(() => generatePreview(), 700);
     return () => { if (previewTimer.current) clearTimeout(previewTimer.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, popType, badgeType, products, bgColor, orientation, photoResolutions]);
@@ -295,23 +308,27 @@ export default function PopMakerTab() {
 
   // 생성 진행률 — 포스터(Gemini)는 점진적, 캔버스(배지/선반/띠지)는 빠르게
   useEffect(() => {
-    if (!generating) { setGenProgress(0); return; }
+    if (!generating) { setGenProgress(0); setGenStep(''); return; }
     const isAI = popType === 'poster';
     if (!isAI) {
-      // 캔버스: 즉시 생성되므로 빠른 진행
       setGenProgress(50);
+      setGenStep('그리는 중');
       const t = setTimeout(() => setGenProgress(90), 300);
       return () => clearTimeout(t);
     }
-    // 포스터(AI): 보통 12~25초 소요 — 시간 기반 부드러운 증가
+    // 포스터(AI): 보통 20~30초 소요 — 시간 기반 단계 + 부드러운 증가
     const startedAt = Date.now();
-    const expectedMs = 18000; // 예상 소요시간
+    const expectedMs = 20000;
     setGenProgress(3);
+    setGenStep('상품 이미지 준비');
     const interval = setInterval(() => {
       const elapsed = Date.now() - startedAt;
-      // 지수 감쇠로 점근 90% 도달 (절대 90% 안 넘음)
       const target = 90 * (1 - Math.exp(-elapsed / (expectedMs / 2.3)));
       setGenProgress(prev => Math.max(prev, Math.round(target)));
+      if (elapsed < 3000) setGenStep('상품 이미지 준비');
+      else if (elapsed < 6000) setGenStep('문구 정리');
+      else if (elapsed < 20000) setGenStep('AI가 그리는 중');
+      else setGenStep('마무리 중');
     }, 200);
     return () => clearInterval(interval);
   }, [generating, popType]);
@@ -672,7 +689,9 @@ export default function PopMakerTab() {
 
   // 제안 → 생성
   async function confirmAndGenerate(overrideCatchphrase?: string, overrideDirection?: string) {
-    setResultImage(null);
+    // 결과 화면에서 "다시 생성" 눌렀을 땐 기존 이미지 유지 (레이아웃 안 깨짐, 완료 시 교체)
+    // 최초 생성은 어차피 form 화면이라 resultImage 있어도 안 보임
+    setImageHistory([]);
     setChat([]);
     setGenProgress(5);
     setGenerating(true);
@@ -716,12 +735,13 @@ export default function PopMakerTab() {
             originalPrice: p.originalPrice ? Number(p.originalPrice) : null,
             price: p.price ? Number(p.price) : null,
           })),
+          ...getAIConfig(),
         }),
       });
       const data = await res.json();
 
       if (!res.ok) {
-        setChat([{ role: 'bot', text: data.error || '생성에 실패했어요.' }]);
+        setChat([{ role: 'bot', text: '잠시만 기다려주세요.' }]);
         return;
       }
 
@@ -744,12 +764,12 @@ export default function PopMakerTab() {
         setRefineStep2('');
       } else {
         setView('result');
-        setChat([{ role: 'bot', text: '생성에 실패했어요.' }]);
+        setChat([{ role: 'bot', text: '잠시만 기다려주세요.' }]);
         setGenerating(false);
       }
     } catch (e) {
       setView('result');
-      setChat([{ role: 'bot', text: e instanceof Error ? e.message : '오류가 발생했어요.' }]);
+      setChat([{ role: 'bot', text: '잠시만 기다려주세요.' }]);
       setGenerating(false);
     }
   }
@@ -766,17 +786,18 @@ export default function PopMakerTab() {
       const res = await fetch('/api/pop/refine', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ previousImage: resultImage, instruction }),
+        body: JSON.stringify({ previousImage: resultImage, instruction, ...getAIConfig() }),
       });
       const data = await res.json();
       if (data.imageUrl) {
+        if (resultImage) setImageHistory(prev => [...prev, resultImage]);
         setResultImage(data.imageUrl);
         setChat(prev => [...prev, { role: 'bot', text: '수정 완료. 추가 수정이 필요하면 위 버튼을 선택해주세요.' }]);
       } else {
-        setChat(prev => [...prev, { role: 'bot', text: '수정에 실패했어요. 다른 표현으로 다시 말해주세요.' }]);
+        setChat(prev => [...prev, { role: 'bot', text: '잠시만 기다려주세요.' }]);
       }
     } catch {
-      setChat(prev => [...prev, { role: 'bot', text: '오류가 발생했어요.' }]);
+      setChat(prev => [...prev, { role: 'bot', text: '잠시만 기다려주세요.' }]);
     } finally {
       setRefining(false);
     }
@@ -804,16 +825,17 @@ export default function PopMakerTab() {
     fetch('/api/pop/refine', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ previousImage: resultImage, instruction: prompt }),
+      body: JSON.stringify({ previousImage: resultImage, instruction: prompt, ...getAIConfig() }),
     }).then(res => res.json()).then(data => {
       if (data.imageUrl) {
+        if (resultImage) setImageHistory(prev => [...prev, resultImage]);
         setResultImage(data.imageUrl);
         setChat([{ role: 'bot', text: '수정 완료.' }]);
       } else {
-        setChat([{ role: 'bot', text: '수정에 실패했습니다. 다시 시도해주세요.' }]);
+        setChat([{ role: 'bot', text: '잠시만 기다려주세요.' }]);
       }
     }).catch(() => {
-      setChat([{ role: 'bot', text: '오류가 발생했습니다.' }]);
+      setChat([{ role: 'bot', text: '잠시만 기다려주세요.' }]);
     }).finally(() => {
       setRefining(false);
     });
@@ -844,11 +866,13 @@ export default function PopMakerTab() {
               <h1 className="font-bold text-[18px]">POP 메이커</h1>
               <p className="text-[15px] text-grey-400 mt-0.5">편의점 POP를 자동으로 만들어드려요</p>
             </div>
-            <span className="text-[14px] font-medium text-primary-500 bg-primary-100 px-2.5 py-1 rounded-full">BETA</span>
+            <div className="flex items-center gap-2">
+              <span className="text-[14px] font-medium text-primary-500 bg-primary-100 px-2.5 py-1 rounded-full">BETA</span>
+            </div>
           </div>
         </header>
 
-        <main className="flex-1 min-h-0 overflow-y-auto px-4 py-5">
+        <main className="flex-1 min-h-0 overflow-y-auto px-4 py-5" style={{ scrollbarGutter: 'stable' }}>
           <div className="bg-gradient-to-br from-primary-100 to-violet-50 rounded-2xl p-5 mb-5 border border-primary-100">
             <p className="text-[16px] font-bold text-grey-800">어떤 POP를 만들고 싶으세요?</p>
             <p className="text-[15px] text-grey-500 mt-1">A4 용지에 인쇄해서 바로 매장에 붙일 수 있어요.</p>
@@ -924,7 +948,7 @@ export default function PopMakerTab() {
           </div>
         </header>
 
-        <main className="flex-1 min-h-0 overflow-y-auto pb-32">
+        <main className="flex-1 min-h-0 overflow-y-auto pb-32" style={{ scrollbarGutter: 'stable' }}>
           {/* 이렇게 나와요 — 샘플 미리보기 */}
           <PreviewBar popType={popType} orientation={orientation} previewImage={previewImage} previewLoading={previewLoading} />
 
@@ -1153,7 +1177,7 @@ export default function PopMakerTab() {
               {generating && popType !== 'poster' && (
                 <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               )}
-              {generating ? (popType === 'poster' ? `생성 중... ${genProgress}%` : '생성 중...') : 'POP 만들기'}
+              {generating ? (popType === 'poster' ? `${genStep || '생성 중'}... ${genProgress}%` : '생성 중...') : 'POP 만들기'}
             </span>
           </button>
         </div>
@@ -1216,7 +1240,7 @@ export default function PopMakerTab() {
           </div>
         </header>
 
-        <main className="flex-1 min-h-0 overflow-y-auto px-4 py-5 space-y-4 pb-32">
+        <main className="flex-1 min-h-0 overflow-y-auto px-4 py-5 space-y-4 pb-32" style={{ scrollbarGutter: 'stable' }}>
           {/* 단계 제목 */}
           <div>
             <h2 className="text-[20px] font-bold text-grey-900">{stepTitle}</h2>
@@ -1852,7 +1876,7 @@ export default function PopMakerTab() {
                 style={{ width: `${genProgress}%` }} />
             )}
             <span className="relative">
-              {generating ? `생성 중... ${genProgress}%` : wizardStep === totalSteps ? 'POP 만들기' : '다음'}
+              {generating ? `${genStep || '생성 중'}... ${genProgress}%` : wizardStep === totalSteps ? 'POP 만들기' : '다음'}
             </span>
           </button>
           </div>
@@ -1890,7 +1914,7 @@ export default function PopMakerTab() {
           </div>
         </header>
 
-        <main className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4 pb-32">
+        <main className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4 pb-32" style={{ scrollbarGutter: 'stable' }}>
           {/* 조건 요약 */}
           <div className="bg-white rounded-2xl border border-grey-100 p-5 shadow-sm">
             <h3 className="text-[16px] font-bold text-grey-800 mb-4">입력 정보</h3>
@@ -2033,7 +2057,7 @@ export default function PopMakerTab() {
                   style={{ width: `${genProgress}%` }} />
               )}
               <span className="relative">
-                {generating ? `생성 중... ${genProgress}%` : '이대로 만들기'}
+                {generating ? `${genStep || '생성 중'}... ${genProgress}%` : '이대로 만들기'}
               </span>
             </button>
           </div>
@@ -2068,22 +2092,58 @@ export default function PopMakerTab() {
         </div>
       </header>
 
-      <main className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4 pb-32">
+      <main className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4 pb-32" style={{ scrollbarGutter: 'stable' }}>
         {/* 결과 이미지 */}
         <div className="bg-white rounded-2xl border border-grey-100 p-5 shadow-sm">
+          {!resultImage && generating && (
+            <div className="w-full rounded-xl bg-grey-50 border border-grey-100 flex flex-col items-center justify-center py-16">
+              <div className="w-10 h-10 border-4 border-primary-200 border-t-primary-500 rounded-full animate-spin mb-3" />
+              <div className="text-[14px] font-bold text-grey-700">{genStep || '생성 중'}</div>
+              <div className="text-[12px] text-grey-500 mt-1">{genProgress}%</div>
+            </div>
+          )}
           {resultImage && (
             <>
-              <div className={`result-image-wrapper w-full rounded-xl overflow-hidden bg-grey-100 border border-grey-100 mb-4 ${refining ? 'opacity-50' : ''}`}
+              <div className="result-image-wrapper w-full rounded-xl overflow-hidden bg-grey-100 border border-grey-100 mb-4"
                 style={{ aspectRatio: resultAspect, position: 'relative', filter: pageBlurred ? 'blur(20px)' : 'none', transition: 'filter 0.15s' }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={resultImage} alt="생성된 POP" className="w-full h-full object-contain"
+                <img src={resultImage} alt="생성된 POP"
+                  className={`w-full h-full object-contain ${refining || generating ? 'opacity-40' : ''}`}
                   onContextMenu={e => e.preventDefault()}
                   style={{ WebkitTouchCallout: 'none', userSelect: 'none', WebkitUserSelect: 'none' }}
                   onError={(e) => { e.preventDefault(); }} />
                 <div className="pop-watermark-overlay" />
+                {generating && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="bg-white/95 rounded-2xl px-5 py-4 shadow-lg flex flex-col items-center gap-1">
+                      <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-500 rounded-full animate-spin mb-1" />
+                      <div className="text-[14px] font-bold text-grey-700">{genStep || '생성 중'}</div>
+                      <div className="text-[12px] text-grey-500">{genProgress}%</div>
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className="flex gap-3">
-                {popType !== 'poster' && (
+              <div className="flex gap-2">
+                {imageHistory.length > 0 && (
+                  <button onClick={() => {
+                    const last = imageHistory[imageHistory.length - 1];
+                    setImageHistory(prev => prev.slice(0, -1));
+                    setResultImage(last);
+                    setChat(prev => [...prev, { role: 'bot', text: '이전 버전으로 되돌렸어요.' }]);
+                  }}
+                    disabled={generating || refining}
+                    className="shrink-0 px-3 py-3 rounded-xl text-[14px] font-bold bg-grey-100 text-grey-700 active:bg-grey-200 disabled:opacity-50"
+                    title="수정 되돌리기">
+                    ↶ 되돌리기
+                  </button>
+                )}
+                {popType === 'poster' ? (
+                  <button onClick={() => confirmAndGenerate()}
+                    disabled={generating || refining}
+                    className="flex-1 py-3 rounded-xl text-[16px] font-bold bg-grey-100 text-grey-700 active:bg-grey-200 disabled:opacity-50">
+                    다시 생성 (약 20원)
+                  </button>
+                ) : (
                   <button onClick={() => {
                     setView('form');
                     setWizardStep(1);

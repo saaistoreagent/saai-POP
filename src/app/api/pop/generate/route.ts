@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { generateGeminiPOP } from '@/lib/generateGeminiPOP';
-import { overlayTextOnImage } from '@/lib/overlayText';
-import { renderBadgeSheet, renderShelfSheet, renderBannerSheet, tileImageToSheet } from '@/lib/renderSimplePOP';
+import { generateOpenAIPOP, type OpenAIQuality } from '@/lib/generateOpenAIPOP';
+import { renderBadgeSheet, renderShelfSheet, renderBannerSheet } from '@/lib/renderSimplePOP';
 import fs from 'fs';
 import path from 'path';
 
@@ -80,7 +80,10 @@ function saveImageToPublic(base64: string): string {
 }
 
 export async function POST(request: NextRequest) {
-  const { productName, productBadge, price, originalPrice, direction, category, productImageUrl, productImages, badgeType: inputBadgeType, eventPeriod: inputEventPeriod, additionalProducts, orientation, premium: isPremium, bgColor: inputBgColor, catchphraseInput, noSearch, skipBgRemoval } = await request.json();
+  const { productName, productBadge, price, originalPrice, direction, category, productImageUrl, productImages, badgeType: inputBadgeType, eventPeriod: inputEventPeriod, additionalProducts, orientation, premium: isPremium, bgColor: inputBgColor, catchphraseInput, noSearch, skipBgRemoval, provider, quality, preview } = await request.json();
+
+  // 미리보기 모드: 파일 저장 안 함 (/public/generated/ 쓰면 Next dev 서버 파일 watcher가 Fast Refresh 유발 → 레이아웃 깜빡임)
+  const persist = (base64: string): string => preview ? base64 : saveImageToPublic(base64);
 
   // 상품명 필수 체크 제거 — 포스터도 문구만으로 생성 가능
 
@@ -171,8 +174,9 @@ JSON만:
     let fullImage = false;
 
     if (category === 'promo' || category === 'product') {
-      // 대형 POP → Gemini Flash로 전체 이미지 한 번에 생성
-      console.log('[pop] Gemini POP 생성 시도...');
+      // 대형 POP → AI로 전체 이미지 한 번에 생성 (provider 선택)
+      const usingOpenAI = provider === 'openai';
+      console.log(`[pop] ${usingOpenAI ? 'OpenAI gpt-image-2' : 'Gemini'} POP 생성 시도...`);
 
       // 상품 목록 구성 (검색 전에 먼저)
       const allProducts = [
@@ -245,7 +249,7 @@ JSON만:
       const popType = popTypeMap[category] || 'poster';
       const products = allProducts;
 
-      const geminiImage = await generateGeminiPOP({
+      const genOptions = {
         popType,
         products,
         badgeType: inputBadgeType || undefined,
@@ -253,21 +257,25 @@ JSON만:
         catchphrase,
         productImageBase64: productBase64Array[0] || null,
         productImages: productBase64Array.length > 0 ? productBase64Array : undefined,
-        // 포스터: Gemini가 캐치프레이즈를 직접 박음 (자연스러운 배치)
+        // 포스터: AI가 캐치프레이즈를 직접 박음 (자연스러운 배치)
         embedKoreanText: popType === 'poster',
-      });
+      };
 
-      if (geminiImage) {
-        bgImage = saveImageToPublic(geminiImage);
+      const generatedImage = usingOpenAI
+        ? await generateOpenAIPOP({ ...genOptions, quality: (quality as OpenAIQuality) || 'low' })
+        : await generateGeminiPOP(genOptions);
+
+      if (generatedImage) {
+        bgImage = persist(generatedImage);
         fullImage = true;
       } else {
-        console.log('[pop] Gemini 실패');
+        console.log(`[pop] ${usingOpenAI ? 'OpenAI' : 'Gemini'} 실패`);
       }
     } else if (category === 'badge') {
       // 배지 → Canvas 직접 렌더링
       const isLandscape = orientation === '가로';
       const badgeImage = renderBadgeSheet(inputBadgeType || '', isLandscape, inputBgColor);
-      bgImage = saveImageToPublic(badgeImage);
+      bgImage = persist(badgeImage);
       fullImage = true;
     } else if (category === 'price' || category === 'strip') {
       const isLandscape = orientation === '가로';
@@ -319,11 +327,11 @@ JSON만:
 
       try {
         if (category === 'price') {
-          bgImage = saveImageToPublic(
+          bgImage = persist(
             await renderShelfSheet(products, inputBadgeType, isLandscape, inputBgColor, photoList)
           );
         } else {
-          bgImage = saveImageToPublic(
+          bgImage = persist(
             await renderBannerSheet(products, catchphrase, inputBadgeType, isLandscape, inputBgColor, photoList)
           );
         }

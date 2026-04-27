@@ -5,14 +5,14 @@
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-interface ProductInfo {
+export interface ProductInfo {
   name: string;
   originalPrice?: number | null;
   price?: number | null;
   badge?: string | null;
 }
 
-interface GeminiPOPOptions {
+export interface GeminiPOPOptions {
   popType: 'poster' | 'badge' | 'shelf' | 'banner';
   products: ProductInfo[];
   badgeType?: string;
@@ -25,7 +25,7 @@ interface GeminiPOPOptions {
   embedKoreanText?: boolean;
 }
 
-function buildPrompt(options: GeminiPOPOptions): string {
+export function buildPrompt(options: GeminiPOPOptions): string {
   const { popType, products, badgeType, direction, productImageBase64, productImages, embedKoreanText, catchphrase, bgColor } = options;
   const main = products[0];
   const isLandscape = direction?.includes('가로') || false;
@@ -34,33 +34,28 @@ function buildPrompt(options: GeminiPOPOptions): string {
   const orientationStrict = isLandscape
     ? 'CRITICAL: The image MUST be HORIZONTAL/LANDSCAPE orientation. Width MUST be LARGER than height.'
     : 'CRITICAL: The image MUST be VERTICAL/PORTRAIT orientation. HEIGHT MUST BE LARGER THAN WIDTH. Like an A4 paper standing up. NOT square. NOT landscape.';
-  const hasProductPhoto = !!productImageBase64;
   const uploadedCount = productImages?.filter(img => img.startsWith('data:')).length || (productImageBase64 ? 1 : 0);
 
   switch (popType) {
     case 'poster': {
-      const productCount = products.filter(p => p.name).length;
       const productList = products.filter(p => p.name).map(p => p.name).join(', ');
+      const validProds = products.filter(p => p.name);
+      const prodBadges = validProds.filter(p => p.badge && p.badge.trim());
 
-      // ─── 한글 텍스트를 Gemini가 직접 박는 모드 ───
-      if (embedKoreanText) {
-        const validProds = products.filter(p => p.name);
-        const prodBadges = validProds.filter(p => p.badge && p.badge.trim());
+      const mainTextLine = catchphrase
+        ? `Main headline (large, bold, white, on a calm/dark area — top or center): "${catchphrase}"`
+        : '(no headline)';
+      const perProductBadgeLine = prodBadges.length > 0
+        ? `Per-product small highlight badges (render each badge as a small pill/tag near its matching product — bright yellow or red background, dark text, clearly smaller than the main headline):\n${prodBadges.map(p => `  - Next to "${p.name}": "${p.badge}"`).join('\n')}`
+        : '';
 
-        const mainTextLine = catchphrase
-          ? `Main headline (large, bold, white, on a calm/dark area — top or center): "${catchphrase}"`
-          : '(no headline)';
-        const perProductBadgeLine = prodBadges.length > 0
-          ? `Per-product small highlight badges (render each badge as a small pill/tag near its matching product — bright yellow or red background, dark text, clearly smaller than the main headline):\n${prodBadges.map(p => `  - Next to "${p.name}": "${p.badge}"`).join('\n')}`
-          : '';
+      const textLine = [mainTextLine, perProductBadgeLine].filter(Boolean).join('\n');
 
-        const textLine = [mainTextLine, perProductBadgeLine].filter(Boolean).join('\n');
+      const productLine = validProds.length === 1
+        ? `Show "${main.name}" as the main subject. Position and scale: you decide what looks best for an advertisement — it can be center, bottom, side, on a surface, etc. Just balance with the text area.`
+        : `Show all ${validProds.length} products together as ONE cohesive scene (shared lighting/background, NOT a grid or split panels). Arrange them naturally — gathered, overlapping, or grouped.`;
 
-        const productLine = validProds.length === 1
-          ? `Show "${main.name}" as the main subject. Position and scale: you decide what looks best for an advertisement — it can be center, bottom, side, on a surface, etc. Just balance with the text area.`
-          : `Show all ${validProds.length} products together as ONE cohesive scene (shared lighting/background, NOT a grid or split panels). Arrange them naturally — gathered, overlapping, or grouped.`;
-
-        return `Create a Korean convenience store advertisement poster. ${ratio} format.
+      return `Create a Korean convenience store advertisement poster. ${ratio} format.
 ${orientationStrict}
 
 ═══ ABSOLUTE RULES ═══
@@ -91,65 +86,6 @@ Print-ready A4 quality. Ensure good contrast where text sits so Korean is clearl
 
 ═══ REMINDER ═══
 - Korean text: only the exact string above. Every character exact. No extras.`;
-      }
-
-      if (productCount <= 1) {
-        return `Create a professional advertisement poster image. ${ratio} format.
-${orientationStrict}
-
-CRITICAL RULES:
-- ABSOLUTELY NO TEXT, NO LETTERS, NO NUMBERS, NO KOREAN CHARACTERS, NO WRITING OF ANY KIND
-- The image must contain ZERO text elements
-
-Content:
-- Show ${main.name} product ${hasProductPhoto ? '(use the provided product photo exactly as-is)' : `(generate a realistic photo of "${main.name}" Korean convenience store product)`}
-- Product should be large and prominent, taking 40-50% of the image center
-- Background effects that match the product mood
-- Leave the top 20% and bottom 30% darker for text overlay later
-- Fill the entire frame, no empty white space
-- Professional advertising quality, dramatic lighting
-- High resolution, print-ready
-${direction ? `\nUser's specific request for the visual style: "${direction}"\nFollow this direction for the background effects and overall mood.` : ''}
-
-Remember: ZERO text in the image. Not even brand logos. Pure visual only.`;
-      }
-
-      // 다중 상품 — 한 장면으로 자연스럽게 합성
-      const usingUploaded = uploadedCount >= productCount;
-      const productList2 = products.filter(p => p.name).map((p, i) => `  ${i + 1}. ${p.name}`).join('\n');
-
-      return `Create ONE professional advertisement poster image that naturally features ${productCount} products together as a single cohesive scene. ${ratio} format.
-${orientationStrict}
-
-CRITICAL RULES:
-- ABSOLUTELY NO TEXT, NO LETTERS, NO NUMBERS, NO KOREAN CHARACTERS, NO WRITING OF ANY KIND
-- The image must contain ZERO text elements
-
-Composition:
-- This is a SINGLE unified advertisement image, NOT a grid, NOT split panels, NOT a collage.
-- All ${productCount} products must appear together in ONE shared scene with the SAME background, lighting, and perspective — like a real product photo shoot where all items sit on the same table or float in the same space.
-- Arrange the products in a visually pleasing way (e.g., gathered in a row, slightly overlapping, staggered depths, or grouped naturally) — whatever looks best for an advertisement.
-- All products should be similarly sized and clearly recognizable.
-- Leave the top 15% and bottom 25% of the image visually calmer (darker, less busy) so text can be overlaid later. Do NOT add any text yourself.
-
-Products to include:
-${productList2}
-
-${usingUploaded
-  ? `IMAGE INPUTS:
-You are receiving ${uploadedCount} reference photos as inline image inputs.
-Use each photo as the actual product — preserve the label, branding, color, packaging, and shape EXACTLY as shown.
-Do NOT generate generic versions. Do NOT swap brands.
-Place all of them together into ONE cohesive scene with shared lighting and background.`
-  : `- Generate realistic photos of each product based on the names above and arrange them together in one scene.`}
-
-Style:
-- Professional advertising quality, dramatic studio lighting
-- ONE unified background (not separate panels per product)
-- ${direction ? `Visual mood: "${direction}"` : 'Mood matching the products'}
-- Print-ready, high resolution
-
-Remember: ZERO text in the image. Pure visual only.`;
     }
 
     case 'badge':

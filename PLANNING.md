@@ -125,7 +125,7 @@ Step 2: 강조 문구 + 분위기
   - 분위기 프리셋 6종 or 직접 입력
   ↓
 Step 3: 사진 확인 + 용지 방향
-  - 상품 사진 자동 검색 (DuckDuckGo)
+  - 상품 사진 자동 검색 (네이버 쇼핑 API)
   - 직접 올리기 / 다른 이미지 찾기 / AI가 그리기
   - 용지 방향 (세로/가로)
   ↓
@@ -176,7 +176,7 @@ Step 3: 용지 방향
 | `/api/pop/generate` | POP 생성 (포스터: Gemini, 나머지: Canvas) | Gemini 3.1 Flash Image Preview / @napi-rs/canvas |
 | `/api/pop/refine` | 결과 수정 (image-to-image) | Gemini 3.1 Flash Image Preview |
 | `/api/pop/suggest` | 문구 AI 다듬기 | Gemini 2.5 Flash |
-| `/api/search-image` | 상품 사진 검색 | DuckDuckGo 이미지 검색 |
+| `/api/search-image` | 상품 사진 검색 | 네이버 쇼핑 API |
 | `/api/proxy-image` | 외부 이미지 프록시 (CORS 우회) | - |
 | `/api/example/[type]` | 랜딩 카드 예시 이미지 | Canvas / Gemini |
 
@@ -199,7 +199,7 @@ Step 3: 용지 방향
 |---|---|---|
 | Gemini 3.1 Flash Image Preview | 포스터 이미지 생성 + 수정 | ~50-70원/회 |
 | Gemini 2.5 Flash | 문구 다듬기 | 무료 (일 1500회) / 유료 ~0.05원/회 |
-| DuckDuckGo | 상품 사진 자동 검색 | 무료 |
+| 네이버 쇼핑 API | 상품 사진 자동 검색 | 무료 (일 25,000회) |
 
 ---
 

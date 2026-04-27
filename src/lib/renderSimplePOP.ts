@@ -25,31 +25,6 @@ function isLight(hex: string): boolean {
 function textColor(bg: string) { return isLight(bg) ? '#1F2937' : '#FFFFFF'; }
 function priceColor(bg: string) { return isLight(bg) ? '#DC2626' : '#FFD700'; }
 
-/** AI 카드 1개를 그리드에 복사 배치 */
-export async function tileImageToSheet(
-  imageBase64: string, cols: number, rows: number, isLandscape: boolean,
-): Promise<string> {
-  const { loadImage } = require('@napi-rs/canvas');
-  const W = isLandscape ? A4H : A4W, H = isLandscape ? A4W : A4H;
-  const cellW = Math.floor(W / cols), cellH = Math.floor(H / rows);
-  const canvas = createCanvas(W, H);
-  const ctx = canvas.getContext('2d') as Ctx;
-  ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, W, H);
-
-  const img = await loadImage(imageBase64);
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      ctx.drawImage(img, c * cellW, r * cellH, cellW, cellH);
-    }
-  }
-  // 절취선
-  ctx.setLineDash([8, 4]); ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 1.5;
-  for (let c = 1; c < cols; c++) { ctx.beginPath(); ctx.moveTo(c * cellW, 0); ctx.lineTo(c * cellW, H); ctx.stroke(); }
-  for (let r = 1; r < rows; r++) { ctx.beginPath(); ctx.moveTo(0, r * cellH); ctx.lineTo(W, r * cellH); ctx.stroke(); }
-
-  return rotateIfLandscape(canvas, !!isLandscape);
-}
-
 /** 정상가 취소선 그리기 — 배경 밝기에 따라 색 적응 */
 function drawOriginalPrice(ctx: Ctx, op: number, cx: number, y: number, fontSize: number, bg?: string) {
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
