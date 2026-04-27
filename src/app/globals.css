@@ -193,13 +193,13 @@ input[type=number] { -moz-appearance: textfield; }
   -webkit-user-drag: none;
 }
 
-/* 워터마크 오버레이 */
+/* 워터마크 오버레이 — 어떤 배경 색에서도 보이도록 흰 글자 + 진한 테두리 */
 .pop-watermark-overlay {
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 10;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='80'%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle' font-size='22' font-weight='900' font-family='sans-serif' fill='rgba(60,60,60,0.7)' transform='rotate(-30 100 40)'%3EPOP%EB%A9%94%EC%9D%B4%EC%BB%A4%3C/text%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='120'%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle' font-size='36' font-weight='900' font-family='sans-serif' fill='rgba(255,255,255,0.7)' stroke='rgba(0,0,0,0.55)' stroke-width='2.5' paint-order='stroke fill' transform='rotate(-30 160 60)'%3EPOP%EB%A9%94%EC%9D%B4%EC%BB%A4%3C/text%3E%3C/svg%3E");
   background-repeat: repeat;
-  background-size: 90px 40px;
+  background-size: 150px 60px;
 }
