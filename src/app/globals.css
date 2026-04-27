@@ -199,7 +199,8 @@ input[type=number] { -moz-appearance: textfield; }
   inset: 0;
   pointer-events: none;
   z-index: 10;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='110' overflow='visible'%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle' font-size='30' font-weight='900' font-family='sans-serif' fill='rgba(255,255,255,0.7)' stroke='rgba(0,0,0,0.55)' stroke-width='2.5' paint-order='stroke fill' transform='rotate(-30 130 55)'%3EPOP%EB%A9%94%EC%9D%B4%EC%BB%A4%3C/text%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='150'%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle' font-size='28' font-weight='900' font-family='sans-serif' fill='rgba(255,255,255,0.7)' stroke='rgba(0,0,0,0.55)' stroke-width='2.5' paint-order='stroke fill' transform='rotate(-30 160 75)'%3EPOP%EB%A9%94%EC%9D%B4%EC%BB%A4%3C/text%3E%3C/svg%3E");
   background-repeat: repeat;
-  background-size: 260px 110px;
+  background-size: 320px 150px;
+  background-position: center;
 }
