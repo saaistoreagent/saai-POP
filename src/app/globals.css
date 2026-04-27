@@ -193,14 +193,14 @@ input[type=number] { -moz-appearance: textfield; }
   -webkit-user-drag: none;
 }
 
-/* 워터마크 오버레이 — 어떤 배경 색에서도 보이도록 흰 글자 + 진한 테두리 */
+/* 워터마크 오버레이 — 가장자리에서 글자가 잘리지 않도록 SVG 안에 stamp 위치 고정.
+   preserveAspectRatio='none'으로 컨테이너에 꽉 채워 stamp가 잘리지 않음. */
 .pop-watermark-overlay {
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 10;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='90'%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle' font-size='22' font-weight='900' font-family='sans-serif' fill='rgba(255,255,255,0.7)' stroke='rgba(0,0,0,0.55)' stroke-width='2' paint-order='stroke fill' transform='rotate(-30 70 45)'%3EPOP%EB%A9%94%EC%9D%B4%EC%BB%A4%3C/text%3E%3C/svg%3E");
-  background-repeat: repeat;
-  background-size: 140px 90px;
-  background-position: center;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 300' preserveAspectRatio='none'%3E%3Cg font-size='14' font-weight='900' font-family='sans-serif' fill='rgba(255,255,255,0.7)' stroke='rgba(0,0,0,0.55)' stroke-width='1.2' paint-order='stroke fill' text-anchor='middle' dominant-baseline='middle'%3E%3Ctext x='35' y='35' transform='rotate(-25 35 35)'%3EPOP%EB%A9%94%EC%9D%B4%EC%BB%A4%3C/text%3E%3Ctext x='100' y='35' transform='rotate(-25 100 35)'%3EPOP%EB%A9%94%EC%9D%B4%EC%BB%A4%3C/text%3E%3Ctext x='165' y='35' transform='rotate(-25 165 35)'%3EPOP%EB%A9%94%EC%9D%B4%EC%BB%A4%3C/text%3E%3Ctext x='35' y='95' transform='rotate(-25 35 95)'%3EPOP%EB%A9%94%EC%9D%B4%EC%BB%A4%3C/text%3E%3Ctext x='100' y='95' transform='rotate(-25 100 95)'%3EPOP%EB%A9%94%EC%9D%B4%EC%BB%A4%3C/text%3E%3Ctext x='165' y='95' transform='rotate(-25 165 95)'%3EPOP%EB%A9%94%EC%9D%B4%EC%BB%A4%3C/text%3E%3Ctext x='35' y='155' transform='rotate(-25 35 155)'%3EPOP%EB%A9%94%EC%9D%B4%EC%BB%A4%3C/text%3E%3Ctext x='100' y='155' transform='rotate(-25 100 155)'%3EPOP%EB%A9%94%EC%9D%B4%EC%BB%A4%3C/text%3E%3Ctext x='165' y='155' transform='rotate(-25 165 155)'%3EPOP%EB%A9%94%EC%9D%B4%EC%BB%A4%3C/text%3E%3Ctext x='35' y='215' transform='rotate(-25 35 215)'%3EPOP%EB%A9%94%EC%9D%B4%EC%BB%A4%3C/text%3E%3Ctext x='100' y='215' transform='rotate(-25 100 215)'%3EPOP%EB%A9%94%EC%9D%B4%EC%BB%A4%3C/text%3E%3Ctext x='165' y='215' transform='rotate(-25 165 215)'%3EPOP%EB%A9%94%EC%9D%B4%EC%BB%A4%3C/text%3E%3Ctext x='35' y='270' transform='rotate(-25 35 270)'%3EPOP%EB%A9%94%EC%9D%B4%EC%BB%A4%3C/text%3E%3Ctext x='100' y='270' transform='rotate(-25 100 270)'%3EPOP%EB%A9%94%EC%9D%B4%EC%BB%A4%3C/text%3E%3Ctext x='165' y='270' transform='rotate(-25 165 270)'%3EPOP%EB%A9%94%EC%9D%B4%EC%BB%A4%3C/text%3E%3C/g%3E%3C/svg%3E");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
 }
